@@ -2,200 +2,207 @@ import heapq
 from collections import defaultdict
 
 type Key = tuple[str, str]
+type Value = int | bool
 
 DELAY = 1
 
 
 class Signal:
-    def __init__(self, value: int = 0, last_value: int = 0):
+    def __init__(self, value: Value = 0):
         self.value = value
-        self.last_value = last_value
+        self.next_value = value
 
-    def update(self, value: int) -> bool:
-        changed = self.value != value
+    def set_next(self, value: Value):
+        self.next_value = value
 
-        self.last_value = self.value
-        self.value = value
-
+    def commit(self):
+        changed = self.value != self.next_value
+        self.value = self.next_value
         return changed
 
-    def __repr__(self) -> str:
-        return f"{self.last_value}->{self.value}"
-
-    def changed(self):
-        return self.value != self.last_value
+    def __repr__(self):
+        return str(self.value)
 
 
 class Component:
     def __init__(self, name: str, inputs: list[str], outputs: list[str]):
         self.name = name
-
         self.inputs = inputs
         self.outputs = outputs
 
-        self.signals: dict[str, Signal] = dict()
+        self.signals = {s: Signal() for s in inputs + outputs}
 
-        for inp in inputs:
-            self.signals[inp] = Signal()
+    def evaluate(self):
+        raise NotImplementedError
 
-        for out in outputs:
-            self.signals[out] = Signal()
+    def commit(self):
+        changed = False
+        for o in self.outputs:
+            changed |= self.signals[o].commit()
+        return changed
 
-    def __getitem__(self, item) -> Signal:
-        return self.signals[item]
+    def next_events(self, t: int):
+        return []
 
-    def __setitem__(self, key, value):
-        self.signals[key] = value
+    def __getitem__(self, key: str):
+        return self.signals[key]
 
-    def evaluate(self) -> bool:
-        pass
-
-    def step_visuals(self) -> None:
-        pass
-
-    def changed(self) -> list[Key]:
-        return [(self.name, n) for n, s in self.signals.items() if s.changed()]
-
-    def __repr__(self) -> str:
-        signals: list[str] = []
-
-        for n, signal in self.signals.items():
-            signals.append(f"    {n}: {signal}")
-
-        lines = [self.name] + signals
-
+    def __repr__(self):
+        lines = [self.name]
+        for k, v in self.signals.items():
+            lines.append(f"  {k}: {v}")
         return "\n".join(lines)
-
-
-class Event:
-    def __init__(self, time: int, component: str):
-        self.time = time
-        self.component = component
 
 
 class Circuit:
     def __init__(self):
-        self.components: dict[str, Component] = dict()
+        self.components = {}
+        self.deps = defaultdict(set)  # component → downstream components
+        self.events = []
+        self.time = 0
+        self.scheduled = set()
 
-        self.graph: dict[Key, list[Key]] = defaultdict(list)
+    def add(self, c: Component):
+        self.components[c.name] = c
 
-        self.events: list[tuple[int, str]] = []
+    def schedule(self, comp: str, t: int):
+        if (comp, t) not in self.scheduled:
+            heapq.heappush(self.events, (t, comp))
+            self.scheduled.add((comp, t))
 
-        self.t = 0
+    def connect(self, src: Key, dst: Key):
+        src_comp, src_pin, = src
+        dst_comp, dst_pin = dst
 
-    def add_component(self, component: Component):
+        src = self.components[src_comp]
+        dst = self.components[dst_comp]
 
-        self.components[component.name] = component
+        dst.signals[dst_pin] = src.signals[src_pin]
+        self.deps[src_comp].add(dst_comp)
 
-    def connect(self, from_comp: Key, to_comp: Key):
-        self.graph[from_comp].append(to_comp)
+    def poke(self, comp: str, signal: str, value: Value):
+        c = self.components[comp]
+        c[signal].set_next(value)
+        c[signal].commit()
+        self.schedule(comp, self.time)
 
-    def run(self, inputs: list[tuple[Key, bool]]):
-        self.t += DELAY
+    def run(self, steps: int = 100) -> bool:
+        updated_data = False
 
-        for (comp, inp), val in inputs:
-            if self.components[comp][inp].update(val):
-                heapq.heappush(self.events, (self.t, comp))
+        while self.events and steps > 0:
+            t, _ = self.events[0]
+            self.time = t
 
-        while len(self.events) > 0:
-            self.step()
+            active = set()
+            while self.events and self.events[0][0] == t:
+                _, c = heapq.heappop(self.events)
+                self.scheduled.discard((c, t))
+                active.add(c)
 
-    def step(self) -> None:
-        if len(self.events) == 0:
-            return
+            # Phase 1: evaluate
+            for name in active:
+                self.components[name].evaluate()
 
-        t = self.events[0][0]
+            # Phase 2: commit
+            changed = set()
+            for name in active:
+                if self.components[name].commit():
+                    changed.add(name)
 
-        active = set()
+            # Phase 3: schedule dependents
+            for c in changed:
+                for n in self.deps[c]:
+                    updated_data = True
+                    self.schedule(n, t + DELAY)
 
-        while self.events and self.events[0][0] == t:
-            active.add(heapq.heappop(self.events)[1])
+            # Phase 4: Autonomous components
+            for name in active:
+                comp = self.components[name]
+                for (nt, target) in comp.next_events(t):
+                    self.schedule(target, nt)
 
-        changed_set: set[Key] = set()
+            steps -= 1
 
-        for c in active:
-            comp = self.components[c]
-
-            if comp.evaluate():
-                comp.step_visuals()
-
-                changed_signals = comp.changed()
-
-                changed_set.update(changed_signals)
-
-                self.update_signals(changed_signals)
-
-        for c in changed_set:
-            for n, signal in self.graph[c]:
-                heapq.heappush(self.events, (t + DELAY, n))
-
-    def update_signals(self, val: list[Key]):
-        for v in val:
-            self.update_signal(v)
-
-    def update_signal(self, inp: Key):
-        state = self.components[inp[0]][inp[1]]
-
-        for n in self.graph[inp]:
-            self.components[n[0]][inp[0]] = state
-
-    def __repr__(self):
-        components: list[str] = []
-
-        components.append("Values")
-
-        for component in self.components.values():
-            components.append(str(component))
-
-        return "\n".join(components)
-
-
-class OR(Component):
-    def __init__(self, name: str):
-        super().__init__(name, ["A", "B"], ["out"])
-
-    def evaluate(self) -> bool:
-        a = self['A']
-        b = self['B']
-
-        out_val = a.value or b.value
-
-        out = self['out']
-
-        return out.update(out_val)
+        return updated_data
 
 
 class AND(Component):
     def __init__(self, name: str):
         super().__init__(name, ["A", "B"], ["out"])
 
-    def evaluate(self) -> bool:
-        a = self['A']
-        b = self['B']
-
-        out_val = a.value and b.value
-
-        out = self['out']
-
-        return out.update(out_val)
+    def evaluate(self):
+        self["out"].set_next(self["A"].value and self["B"].value)
 
 
-if __name__ == '__main__':
-    or_ = OR('A')
-    and_ = AND('B')
+class OR(Component):
+    def __init__(self, name: str):
+        super().__init__(name, ["A", "B"], ["out"])
 
-    circuit = Circuit()
+    def evaluate(self):
+        self["out"].set_next(self["A"].value or self["B"].value)
 
-    circuit.add_component(or_)
-    circuit.add_component(and_)
 
-    circuit.connect(("A", "B"), ("B", "A"))
+class DownCounter(Component):
+    def __init__(self, name: str, bits: int = 4):
+        super().__init__(name, ["clk", "load", "din"], ["out"])
+        self.bits = bits
+        self.state = 0
+        self.prev_clk = 0
 
-    print(circuit)
+    def evaluate(self):
+        clk = self["clk"].value
 
-    circuit.run([
-        (("A", "B"), True),
-        (("B", "B"), True),
-    ])
+        # rising edge
+        if self.prev_clk == 0 and clk == 1:
+            if self["load"].value:
+                self.state = self["din"].value
+            else:
+                self.state = (self.state - 1) % (1 << self.bits)
 
-    print(circuit)
+        self.prev_clk = clk
+        self["out"].set_next(self.state)
+
+
+class Clock(Component):
+    def __init__(self, name: str, period: int = 2):
+        super().__init__(name, [], ["clk"])
+        self.period = period
+
+    def evaluate(self):
+        self["clk"].set_next(1 - self["clk"].value)
+
+    def next_events(self, t):
+        return [(t + self.period // 2, self.name)]
+
+
+def main():
+    c = Circuit()
+
+    period = 2
+
+    clk = Clock("clk", period=period)
+    cnt = DownCounter("cnt", bits=3)
+
+    c.add(clk)
+    c.add(cnt)
+
+    c.connect(("clk", "clk"), ("cnt", "clk"))
+
+    # initialize
+    c.poke("cnt", "load", 1)
+    c.poke("cnt", "din", 5)
+
+    # start the clock explicitly
+    c.schedule("clk", 0)
+
+    c.run(steps=period)
+
+    c.poke("cnt", "load", 0)
+
+    for _ in range(10):
+        c.run(steps=1)
+        print(f"time={c.time}, clk={clk['clk'].value}, cnt={cnt['out'].value}")
+
+
+if __name__ == "__main__":
+    main()
