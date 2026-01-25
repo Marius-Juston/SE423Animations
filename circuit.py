@@ -95,7 +95,7 @@ class Circuit:
 
         for (comp, inp), val in inputs:
             if self.components[comp][inp].update(val):
-                self.events.append((self.t, comp))
+                heapq.heappush(self.events, (self.t, comp))
 
         while len(self.events) > 0:
             self.step()
@@ -108,8 +108,7 @@ class Circuit:
 
         active = set()
 
-        i = 0
-        while i < len(self.events) and self.events[i][0] == t:
+        while self.events and self.events[0][0] == t:
             active.add(heapq.heappop(self.events)[1])
 
         changed_set: set[Key] = set()
