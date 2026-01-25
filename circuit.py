@@ -70,9 +70,7 @@ class Circuit:
             heapq.heappush(self.events, (t, comp))
             self.scheduled.add((comp, t))
 
-    def connect(self, src: Key, dst: Key):
-        src_comp, src_pin, = src
-        dst_comp, dst_pin = dst
+    def connect(self, src_comp: str, src_pin: str, dst_comp: str, dst_pin: str):
 
         src = self.components[src_comp]
         dst = self.components[dst_comp]
@@ -175,7 +173,7 @@ class Clock(Component):
         return [(t + self.period // 2, self.name)]
 
 
-def main():
+def demo1():
     c = Circuit()
 
     period = 2
@@ -186,7 +184,7 @@ def main():
     c.add(clk)
     c.add(cnt)
 
-    c.connect(("clk", "clk"), ("cnt", "clk"))
+    c.connect("clk", "clk", "cnt", "clk")
 
     # initialize
     c.poke("cnt", "load", 1)
@@ -199,10 +197,10 @@ def main():
 
     c.poke("cnt", "load", 0)
 
-    for _ in range(10):
+    for _ in range(15):
         c.run(steps=1)
         print(f"time={c.time}, clk={clk['clk'].value}, cnt={cnt['out'].value}")
 
 
 if __name__ == "__main__":
-    main()
+    demo1()
