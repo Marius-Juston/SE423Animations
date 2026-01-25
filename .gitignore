@@ -1,5 +1,5 @@
 #outputs
-media/
+**/media/
 
 outcmaes/
 all-logs/

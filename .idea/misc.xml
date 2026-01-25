@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="3.13 WSL (Ubuntu-24.04): (/home/auvsl/SE423Animations/.venv/bin/python)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="3.13 WSL (Ubuntu-24.04): (/home/auvsl/SE423Animations/.venv/bin/python)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="uv (SE423Animations)" project-jdk-type="Python SDK" />
 </project>
