@@ -1,18 +1,25 @@
+from typing import Sequence
+
 from manim import *
 
 from circuit import Circuit, Clock
 from ti_timer import LogicGate, NOT, Register, CPUTimerCounter
 
+ANIMATE = True
+
 
 class CircuitShape(VGroup):
     def set_active(self, is_active):
         target_color = YELLOW if is_active else WHITE
-        self.set_stroke(color=target_color)
+
+        stroke = self.animate.set_stroke(color=target_color) if ANIMATE else self.set_stroke(color=target_color)
+
         if hasattr(self, "fill_shape"):
             self.fill_shape: VGroup
 
-            self.fill_shape.set_fill(color=target_color, opacity=0.8 if is_active else 0.2)
-            # self.fill_shape.set_color(color=target_color)
+            shape = self.fill_shape.animate if ANIMATE else self.fill_shape
+
+            return stroke, shape.set_fill(color=target_color, opacity=0.8 if is_active else 0.2)
 
 
 class VisualGroup(CircuitShape):
@@ -21,8 +28,18 @@ class VisualGroup(CircuitShape):
         self.components = components
 
     def set_active(self, is_active):
+        animations = []
+
         for c in self.components:
-            c.set_active(is_active)
+            out = c.set_active(is_active)
+
+            if isinstance(out, Sequence):
+                animations.extend(out)
+            else:
+                animations.append(out)
+
+        return animations
+
 
 class VisualGate(CircuitShape):
     margin = 0.2
@@ -34,7 +51,8 @@ class VisualGate(CircuitShape):
 
         if gate_type == "OR":
             self.fill_shape = ArcPolygon(
-                [-1, 0.5, 0], [-1, -0.5, 0], [1, 0, 0], arc_config=[{"angle": -1.5}, {"angle": PI / 4}, {"angle": PI / 4}]
+                [-1, 0.5, 0], [-1, -0.5, 0], [1, 0, 0],
+                arc_config=[{"angle": -1.5}, {"angle": PI / 4}, {"angle": PI / 4}]
             )
         elif gate_type == "AND":
             self.fill_shape = Union(
@@ -51,9 +69,9 @@ class VisualGate(CircuitShape):
             t = Triangle().scale(0.5).rotate(-90 * DEGREES)
 
             self.fill_shape = VGroup(
-                t,
-                Circle(radius=0.15).next_to(t.get_right()).shift(LEFT * 0.2, UP * 0),
-            )
+                Union(t,
+                      Circle(radius=0.15).next_to(t.get_right()).shift(LEFT * 0.2, UP * 0),
+                      ))
 
             self.num_inputs = 1
 
@@ -82,18 +100,29 @@ class VisualGate(CircuitShape):
 
 
 class VisualBlock(CircuitShape):
-    def __init__(self, label, sub_label="", width=2.5, height=1.0, **kwargs):
+    def __init__(self, label, sub_label: int = 0, width=2.5, height=1.0, **kwargs):
         super().__init__(**kwargs)
-        self.rect = Rectangle(width=width, height=height, color=WHITE, fill_color=GREY)
-        self.fill_shape = self.rect  # For lighting up
-        self.text = Text(label, font_size=20).move_to(self.rect.get_center() + UP * 0.2)
-        self.val_text = Text(sub_label, font_size=18, color=BLUE).move_to(self.rect.get_center() + DOWN * 0.2)
-        self.add(self.rect, self.text, self.val_text)
 
+        self.rect = Rectangle(width=width, height=height, color=WHITE, fill_color=GREY)
+        self.fill_shape = self.rect
+
+        self.text = Text(label, font_size=20).move_to(self.rect.get_center() + UP * 0.2)
+
+        self.current_val = sub_label
+        self.val_text = Integer(sub_label, font_size=32, color=BLUE)
+        self.val_text.move_to(self.rect.get_center() + DOWN * 0.2)
+
+        if ANIMATE:
+            self.val_text.add_updater(lambda m: m.set_value(self.current_val))
+
+        self.add(self.rect, self.text, self.val_text)
         self.set_active(False)
 
     def update_val(self, val):
-        self.val_text.become(Text(str(val), font_size=18, color=BLUE).move_to(self.val_text.get_center()))
+        self.current_val = val
+        if not ANIMATE:
+            self.val_text.set_value(val)
+        return None
 
 
 class VisualWire(VGroup):
@@ -106,7 +135,9 @@ class VisualWire(VGroup):
         self.set_active(False)
 
     def set_active(self, is_active):
-        self.line.set_color(YELLOW if is_active else GREY).set_stroke(width=6 if is_active else 2)
+        shape = self.line.animate if ANIMATE else self.line
+
+        return shape.set_color(YELLOW if is_active else GREY).set_stroke(width=6 if is_active else 2)
 
 
 def same_y(target, val):
@@ -174,10 +205,10 @@ class CPUTimerAnimation(Scene):
         # Coordinates map roughly to the diagram provided
 
         # Blocks
-        v_tddr = VisualBlock("TDDR", "2").move_to([-1, 0.5, 0])
-        v_psc = VisualBlock("PSC", "2").move_to([-1, -1, 0])
-        v_prd = VisualBlock("PRD", "5").move_to([4, 0.5, 0])
-        v_tim = VisualBlock("TIM", "5").move_to([4, -1, 0])
+        v_tddr = VisualBlock("TDDR", 2).move_to([-1, 0.5, 0])
+        v_psc = VisualBlock("PSC", 2).move_to([-1, -1, 0])
+        v_prd = VisualBlock("PRD", 5).move_to([4, 0.5, 0])
+        v_tim = VisualBlock("TIM", 5).move_to([4, -1, 0])
 
         # Gates
         v_pre_or = VisualGate("OR").scale(0.5).move_to([-1.75, 2, 0])
@@ -209,19 +240,17 @@ class CPUTimerAnimation(Scene):
         w_sysclk = VisualWire([t_sysclk.get_right(),
                                v_and.get_in(0)])
         w_tcr_not = VisualWire([t_tcr.get_right(),
-                               v_not.get_in(0)])
+                                v_not.get_in(0)])
 
         w_tcr_and = VisualWire([v_not.get_out(),
-                            v_and.get_in(1)])
+                                v_and.get_in(1)])
 
         w_reset = VisualWire([t_reset.get_right(),
                               v_reset_or.get_in(0)])
         w_timer_reload = VisualWire([t_timer_reload.get_right(),
-                              v_reset_or.get_in(1)])
-
+                                     v_reset_or.get_in(1)])
 
         w_reset_out = VisualWire([v_reset_or.get_out(), v_pre_or.get_in(0)])
-
 
         temp_x = (v_reset_or.get_out() + v_pre_or.get_in(0)) / 2
         temp = temp_x + UP * 0.5
@@ -267,12 +296,11 @@ class CPUTimerAnimation(Scene):
         # Mapping: Simulation Signal Name -> Visual Object
         # This dict tells the animation loop what to light up when a signal is 1
 
-
-        signal_map = {
-            ("SYSCLK", "clk"): w_sysclk,
-            ("Reset_OR", "A"): w_reset,
-            ("Reset_OR", "B"): w_timer_reload,
-            ("INV", "in"): w_tcr_not,
+        signal_map: dict[tuple[str, str], VisualGroup] = {
+            ("SYSCLK", "clk"): VisualGroup(w_sysclk),
+            ("Reset_OR", "A"): VisualGroup(w_reset),
+            ("Reset_OR", "B"): VisualGroup(w_timer_reload),
+            ("INV", "in"): VisualGroup(w_tcr_not),
             ("Gate_AND", "out"): VisualGroup(w_and_out, v_and),
             ("Reset_OR", "out"): VisualGroup(w_reset_out, w_reset_branch, v_reset_or),
             ("Pre_OR", "out"): VisualGroup(w_pre_load, v_pre_or),
@@ -282,7 +310,7 @@ class CPUTimerAnimation(Scene):
             ("INV", "out"): VisualGroup(w_tcr_and, v_not)
         }
 
-        component_map = {
+        component_map: dict[str, VisualBlock] = {
             "PSC": v_psc,
             "TIM": v_tim,
         }
@@ -312,19 +340,40 @@ class CPUTimerAnimation(Scene):
             # Reset logic (Pulse reset for a few frames then drop)
             if step == 2: c.poke("Reset_OR", "A", 0)
 
+            if step == 40:
+                c.poke("INV", "in", 1)
+
+            if step == 47:
+                c.poke("Reset_OR", "A", 1)  # Trigger Reset
+
+            if step == 50:
+                c.poke("INV", "in", 0)
+
+            if step == 58:
+                c.poke("Reset_OR", "A", 0)
+
+
+
+
+            animations = []
             # Update Wires
             for (comp_name, sig_name), visual_wire in signal_map.items():
-                visual_wire: VisualWire
+                visual_wire: VisualGroup
 
                 val = c.components[comp_name].signals[sig_name].value
-                visual_wire.set_active(True if val else False)
+                animations.extend(visual_wire.set_active(True if val else False))
 
             # Update Counters text
             for comp_name, visual_block in component_map.items():
-                val = c.components[comp_name].signals["out"].value
+                comp_signals = c.components[comp_name].signals
+
+                val = comp_signals["out"].value
                 visual_block.update_val(val)
                 # Flash block if loading
-                is_loading = c.components[comp_name].signals["load"].value
-                visual_block.set_active(is_loading)
+                is_loading = comp_signals["load"].value
+                animations.append(visual_block.set_active(is_loading))
+
+            if ANIMATE and animations:
+                self.play(*animations)
 
             self.wait(1)
