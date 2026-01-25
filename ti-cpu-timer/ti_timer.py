@@ -15,6 +15,15 @@ class Register(Component):
         self["out"].set_next(self["out"].value)
 
 
+class LogicGate(Component):
+    def __init__(self, name, op):
+        super().__init__(name, ["A", "B"], ["out"])
+        self.op = op
+
+    def evaluate(self):
+        self["out"].set_next(1 if self.op(self["A"].value, self["B"].value) else 0)
+
+
 class NOT(Component):
     """Inverter for TCR.4 logic."""
 
@@ -49,9 +58,9 @@ class CPUTimerCounter(Component):
     - 'borrow' is the output pulse when count == 0.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, start_val=0):
         super().__init__(name, ["clk", "load", "din"], ["out", "borrow"])
-        self.state = 0
+        self.state = start_val
         self.prev_clk = 0
 
     def evaluate(self):
@@ -92,11 +101,6 @@ class SystemClock(Component):
     def next_events(self, t):
         return [(t + self.period // 2, self.name)]
 
-
-
-
-if __name__ == "__main__":
-    demo()
 
 def demo():
     c = Circuit()
