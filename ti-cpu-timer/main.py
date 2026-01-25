@@ -287,16 +287,19 @@ class CPUTimerAnimation(Scene):
             "TIM": v_tim,
         }
 
+        all_ = [
+            labels,
+            w_sysclk, w_reset, w_tcr_not, w_tcr_and, w_timer_reload, w_reset_out, w_reset_branch, w_and_out,
+            w_psc_feedback, w_psc_cascade, w_pre_load,
+            w_tim_borrow, w_tim_feedback, w_main_load,
+
+            v_tddr, v_psc, v_prd, v_tim, v_reset_or, v_pre_or, v_main_or, v_and, v_not
+        ]
+
         # Add everything to scene
-        self.add(labels)
-        self.add(w_sysclk, w_reset, w_tcr_not, w_tcr_and, w_timer_reload, w_reset_out, w_reset_branch, w_and_out,
-                 w_psc_feedback, w_psc_cascade, w_pre_load,
-                 w_tim_borrow, w_tim_feedback, w_main_load,
+        self.play(*map(Create, all_), run_tim=5)
 
-
-                 v_tddr, v_psc, v_prd, v_tim, v_reset_or, v_pre_or, v_main_or, v_and, v_not
-
-                 )
+        self.add(*all_)
 
         # 1. Reset Pulse
         self.wait(1)
@@ -310,7 +313,6 @@ class CPUTimerAnimation(Scene):
             if step == 2: c.poke("Reset_OR", "A", 0)
 
             # Update Wires
-            anims = []
             for (comp_name, sig_name), visual_wire in signal_map.items():
                 visual_wire: VisualWire
 
