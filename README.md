@@ -4,3 +4,10 @@
 
 This library uses the [Manim library](https://docs.manim.community/en/stable/index.html) for animation
 
+# Installation
+
+Need to have LaTeX installed
+
+```bash
+sudo apt install texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm
+```
