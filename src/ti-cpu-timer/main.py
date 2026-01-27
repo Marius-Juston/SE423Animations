@@ -191,7 +191,7 @@ class CPUTimerAnimation(Scene):
 
         # We run the simulation in small steps and update visuals
         for step in range(60 * 1):
-            c.run(steps=period // 2)
+            c.run(steps=1)
 
             # Reset logic (Pulse reset for a few frames then drop)
             if step == 2: c.poke("Reset_OR", "A", 0)
