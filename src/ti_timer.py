@@ -33,6 +33,15 @@ class NOT(Component):
     def evaluate(self):
         self["out"].set_next(1 - self["in"].value)
 
+class LED(Component):
+    """Inverter for TCR.4 logic."""
+
+    def __init__(self, name):
+        super().__init__(name, ["in"], ["out", "state"])
+
+    def evaluate(self):
+        self['state'].set_next(self['in'].value > self['out'].value)
+
 
 class OR(Component):
     def __init__(self, name):

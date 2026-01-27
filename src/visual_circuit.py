@@ -1,3 +1,5 @@
+from typing import Sequence
+
 from manim import *
 
 ANIMATE = True
@@ -14,7 +16,7 @@ class CircuitShape(VGroup):
 
             shape = self.fill_shape.animate if ANIMATE else self.fill_shape
 
-            return stroke, shape.set_fill(color=target_color, opacity=0.8 if is_active else 0.2)
+            return stroke, shape.set_fill(color=target_color, opacity=0.8 if is_active else 0.2), shape.set_stroke(color=target_color)
 
 
 class VisualGroup(CircuitShape):
@@ -44,6 +46,7 @@ class VisualGate(CircuitShape):
         self.fill_shape = VGroup()
         self.num_inputs = 2
 
+        # TODO should probably just make VisualGate be an abstract class or something
         if gate_type == "OR":
             self.fill_shape = ArcPolygon(
                 [-1, 0.5, 0], [-1, -0.5, 0], [1, 0, 0],
@@ -59,7 +62,7 @@ class VisualGate(CircuitShape):
             self.fill_shape = VGroup(self.fill_shape.add_points_as_corners([[-1, 0.5, 0], [-1, -0.5, 0], [0, -0.5, 0]]),
                                      Arc(start_angle=-PI / 2, angle=PI, radius=0.5).shift(RIGHT * 0, UP * 0),
                                      Line([-1, 0.5, 0], [0, 0.5, 0]))
-        else:
+        elif gate_type == "NOT":
             # OR
             t = Triangle().scale(0.5).rotate(-90 * DEGREES)
 
@@ -69,6 +72,56 @@ class VisualGate(CircuitShape):
                       ))
 
             self.num_inputs = 1
+
+        elif gate_type == "LED":
+            self.num_inputs = 1
+
+            # Diode triangle
+            diode = Triangle(color=WHITE)
+            diode.scale(0.5)
+            diode.rotate(-90 * DEGREES)
+
+            # Cathode bar
+            cathode = Line(
+                start=diode.get_top(),
+                end=diode.get_bottom()
+            ).next_to(diode.get_right(), buff=0.05)
+
+            # Light emission arrows
+            angle = 45
+            radius = 0.75
+            params = {
+                "buff": 0,
+                "stroke_width": 4,
+                "max_tip_length_to_length_ratio": 0.25
+            }
+            arrow = np.array([np.cos(angle), np.sin(angle), 0]) * radius
+
+            start = diode.get_top() + DOWN * 0.1
+
+            arrow_1 = Arrow(
+                start=start,
+                end=start + arrow,
+                **params
+            )
+
+            start = diode.get_top() + RIGHT * 0.2 + DOWN * 0.2
+
+            arrow_2 = Arrow(
+                start=start,
+                end=start + arrow,
+                **params
+            )
+
+            self.fill_shape = VGroup(
+                diode,
+                cathode,
+                arrow_1,
+                arrow_2,
+            )
+
+        else:
+            raise ValueError("Unknown gate_type")
 
         self.add(self.fill_shape)
         self.set_active(False)
@@ -120,7 +173,7 @@ class VisualBlock(CircuitShape):
         return None
 
 
-class VisualWire(VGroup):
+class VisualWire(CircuitShape):
     def __init__(self, points):
         super().__init__()
         self.line = VMobject()
@@ -133,6 +186,35 @@ class VisualWire(VGroup):
         shape = self.line.animate if ANIMATE else self.line
 
         return shape.set_color(YELLOW if is_active else GREY).set_stroke(width=6 if is_active else 2)
+
+class VisualResistor(VisualWire):
+    def __init__(self):
+        x_start = 0
+
+        x_delta = 0.1
+
+        y_switch = 0.1
+
+        points = []
+
+        dir = 1
+
+        steps = 6 + 2
+
+        for n in range(steps):
+
+            last_point = n == steps - 1
+
+            mask = 1 - (n == 0 or last_point)
+
+            points.append([x_start + x_delta * (n - 1 / 2), y_switch * dir * mask, 0])
+
+            if mask:
+                dir = -dir
+
+        super().__init__(points)
+
+        self.scale(2.5)
 
 
 def same_y(target, val):

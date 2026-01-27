@@ -55,7 +55,8 @@ class Component:
 
 
 class Circuit:
-    def __init__(self):
+    def __init__(self, delay=DELAY):
+        self.delay = delay
         self.components = {}
         self.deps = defaultdict(set)  # component → downstream components
         self.events = []
@@ -111,7 +112,7 @@ class Circuit:
             for c in changed:
                 for n in self.deps[c]:
                     updated_data = True
-                    self.schedule(n, t + DELAY)
+                    self.schedule(n, t + self.delay)
 
             # Phase 4: Autonomous components
             for name in active:
