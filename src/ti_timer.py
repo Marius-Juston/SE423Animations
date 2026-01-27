@@ -111,6 +111,74 @@ class SystemClock(Component):
         return [(t + self.period // 2, self.name)]
 
 
+class Mux(Component):
+    """Generic N-way Multiplexer."""
+
+    def __init__(self, name: str, num_inputs: int):
+        inputs = [f"in{i}" for i in range(num_inputs)] + ["sel"]
+        super().__init__(name, inputs, ["out"])
+
+    def evaluate(self):
+        sel = self["sel"].value
+        input_key = f"in{sel}"
+        if input_key in self.signals:
+            self["out"].set_next(self[input_key].value)
+
+
+class InputQualifier(Component):
+    """
+    Implements Sync, 3-sample, 6-sample, and Async modes.
+    Mode 00: Sync (Latched by SYSCLK)
+    Mode 01: 3-sample
+    Mode 10: 6-sample
+    Mode 11: Async (Pass-through)
+    """
+
+    def __init__(self, name: str):
+        super().__init__(name, ["in", "mode", "clk"], ["out"])
+        self.history = []
+
+    def evaluate(self):
+        mode = self["mode"].value
+        val = self["in"].value
+
+        if mode == 3:  # Async
+            self["out"].set_next(val)
+        elif mode == 0:  # Sync (Simplified for this event model)
+            self["out"].set_next(val)
+        else:  # Sampling modes
+            samples = 3 if mode == 1 else 6
+            self.history.append(val)
+            if len(self.history) > samples:
+                self.history.pop(0)
+
+            # If all samples in history are identical, update output
+            if len(self.history) == samples and all(x == self.history[0] for x in self.history):
+                self["out"].set_next(self.history[0])
+
+
+class GPIODataLogic(Component):
+    """Handles GPySET, GPyCLEAR, GPyTOGGLE, and GPyDAT(W) logic."""
+
+    def __init__(self, name: str):
+        inputs = ["set", "clear", "toggle", "dat_w", "master_sel"]
+        super().__init__(name, inputs, ["out"])
+        self.current_state = 0
+
+    def evaluate(self):
+        if self["set"].value:
+            self.current_state = 1
+        elif self["clear"].value:
+            self.current_state = 0
+        elif self["toggle"].value:
+            self.current_state = 1 - self.current_state
+        else:
+            # Note: In real HW, this is controlled by the CPU write bus
+            pass
+
+        self["out"].set_next(self.current_state)
+
+
 def demo():
     c = Circuit()
 
@@ -206,5 +274,60 @@ def demo():
         print(f"{c.time:<5} | {sys_clk:<6} | {p_val:<3} | {p_bor:<5} | {m_val:<4} | {m_bor:<5} | {event_msg}")
 
 
+def create_gpio_logic():
+    c = Circuit()
+
+    # 1. Inputs/Registers (Static or Poked)
+    c.add(Register("GPyPUD", 1))  # Pull-up disable
+    c.add(Register("GPyINV", 0))  # Input Inversion
+    c.add(Register("GPyQSEL", 0))  # Qualification Selection
+    c.add(Register("GPyDIR", 0))  # Direction (0=In, 1=Out)
+    c.add(Register("GPyODR", 0))  # Open Drain
+    c.add(SystemClock("SYSCLK", period=2))
+
+    # 2. Input Path Logic
+    # Inverter Mux (GPyINV)
+    c.add(NOT("Inverter"))
+    c.add(Mux("InvMux", 2))
+
+    # Qualification
+    c.add(InputQualifier("Qualifier"))
+
+    # Input XBAR / Peripheral Mux (Output to Peripherals)
+    c.add(Mux("PeripheralInMux", 16))
+
+    # 3. Output Path Logic
+    c.add(GPIODataLogic("DataLogic"))
+    c.add(Mux("PeripheralOutMux", 16))
+
+    # Open Drain and Enable Logic
+    c.add(AND("EnableLogic"))
+
+    # 4. Connections (Simulating the Wiring)
+    # Input side
+    c.connect("Inverter", "out", "InvMux", "in1")
+    # (Simplified: Pin input goes to InvMux in0 and Inverter in)
+
+    c.connect("InvMux", "out", "Qualifier", "in")
+    c.connect("GPyQSEL", "out", "Qualifier", "mode")
+    c.connect("SYSCLK", "clk", "Qualifier", "clk")
+
+    c.connect("Qualifier", "out", "PeripheralInMux", "in0")  # Example: Routing to Peripheral A
+
+    return c
+
+def demo2():
+
+    # Instantiate and Run
+    gpio_circuit = create_gpio_logic()
+    gpio_circuit.poke("InvMux", "in0", 1)  # Simulate pin high
+
+    for i in range(20):
+        gpio_circuit.run(steps=1)
+
+        print(f"Time step {i}")
+        print(gpio_circuit)
+
 if __name__ == '__main__':
-    demo()
+    # demo()
+    demo2()

@@ -207,7 +207,8 @@ def demo1():
     c.poke("cnt", "load", 0)
 
     for _ in range(15):
-        c.run(steps=1)
+        if not c.run(steps=1):
+            break
         print(f"time={c.time}, clk={clk['clk'].value}, cnt={cnt['out'].value}")
 
 
