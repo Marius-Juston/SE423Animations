@@ -41,11 +41,14 @@ class GPIOLED(Scene):
         v_led = VisualGate("LED").move_to(v_not.get_right() + RIGHT * 1.5)
         triangle = v_led.submobjects[0].submobjects[0]
         v_led.rotate(180 * DEGREES, about_point=triangle.get_center())
+        v_led.flip(LEFT ,about_point=triangle.get_center())
 
 
         data = v_not.get_center() - triangle.get_center()
         data[0] = 0
         v_led.shift(data)
+
+        data = -data
 
         v_resistor = VisualResistor().rotate(90 * DEGREES)
         v_resistor.next_to(v_led.get_out() + data + RIGHT, UP * 3)

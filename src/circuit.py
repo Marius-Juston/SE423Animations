@@ -124,6 +124,14 @@ class Circuit:
 
         return updated_data
 
+    def __repr__(self):
+        components = [f"Num components: {len(self.components)}"]
+
+        for com in self.components.values():
+            components.append(f"{com}")
+
+        return "\n".join(components)
+
 
 class AND(Component):
     def __init__(self, name: str):
