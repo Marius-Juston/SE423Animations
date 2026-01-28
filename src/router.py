@@ -14,6 +14,8 @@ BEND_PENALTY = 50  # Cost added for making a 90-degree turn
 BASE_COST = 1  # Cost to move 1 unit
 MAX_ITERATIONS = 20  # Max rip-up and reroute attempts
 
+MARGIN = 2
+
 
 @dataclass(frozen=True)
 class Point:
@@ -72,7 +74,7 @@ class Router:
     def add_component(self, comp: Component):
         self.components.append(comp)
 
-        comp_scale = comp + 0.1
+        comp_scale = comp + MARGIN
         comp_int_bounding = comp_scale.int_bbox
 
         # Mark component area as obstacle (high base occupancy)
@@ -270,9 +272,17 @@ class Router:
 
         # Draw Components
         for comp in self.components:
+            comp_border = comp + MARGIN
+
+            rect = patches.Rectangle((comp_border.x, comp_border.y), comp_border.width, comp_border.height,
+                                     linewidth=0, facecolor='red', zorder=1)
+            ax.add_patch(rect)
+
             rect = patches.Rectangle((comp.x, comp.y), comp.width, comp.height,
                                      linewidth=2, edgecolor='black', facecolor='lightgray', zorder=2)
             ax.add_patch(rect)
+
+
             ax.text(comp.x + comp.width / 2, comp.y + comp.height / 2, comp.name,
                     ha='center', va='center', weight='bold')
 
