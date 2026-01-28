@@ -39,42 +39,36 @@ class GPIOLED(Scene):
 
         # FIXME make this work better, the rotation is not proper
         v_led = VisualGate("LED").move_to(v_not.get_right() + RIGHT * 1.5)
-        triangle = v_led.submobjects[0].submobjects[0]
-        v_led.rotate(180 * DEGREES, about_point=triangle.get_center())
-        v_led.flip(LEFT ,about_point=triangle.get_center())
-
-
-        data = v_not.get_center() - triangle.get_center()
-        data[0] = 0
-        v_led.shift(data)
-
-        data = -data
+        v_led.rotate(180 * DEGREES)
+        v_led.flip(LEFT)
 
         v_resistor = VisualResistor().rotate(90 * DEGREES)
-        v_resistor.next_to(v_led.get_out() + data + RIGHT, UP * 3)
-
-        # v_led.rotate(180 * DEGREES)
+        v_resistor.move_to(v_led.get_in() + UP * 1.5 + RIGHT)
 
         w_gpio_not = VisualWire([
             v_gpio.get_right(), v_not.get_in()
         ])
 
         w_not_led = VisualWire([
-            v_not.get_out(), v_led.get_in() + data + RIGHT * 0.15
+            v_not.get_out(), v_led.get_out()
         ])
 
         up_mul = 10
 
-        t_led = Text("LED").next_to(v_led, UP+ data)
+        with v_led as v_led_ac:
+            t_led = Text("LED").next_to(v_led_ac, UP)
+
+        print(v_led.actual)
+
         t_3_3v_not = Text("3.3V").next_to(v_not, UP * up_mul)
-        t_3_3v_led = Text("3.3V").move_to(v_led.get_out() + data).shift(RIGHT)
+        t_3_3v_led = Text("3.3V").move_to(v_led.get_in()).shift(RIGHT)
         t_3_3v_led.shift(t_3_3v_not.get_bottom() - same_y(t_3_3v_led.get_bottom(), t_3_3v_not.get_bottom()))
 
         t_ohms = Text("1kΩ").rotate(-90 * DEGREES).next_to(v_resistor, RIGHT)
 
         w_not_power = VisualWire([v_not.get_center() + UP * 0.1, t_3_3v_not.get_bottom()])
         w_led_power = VisualWire([
-            v_led.get_out() + data , v_led.get_out()  + data + RIGHT, v_resistor.get_bottom()
+            v_led.get_in() , v_led.get_in()  + RIGHT, v_resistor.get_bottom()
         ])
 
         w_res_power = VisualWire([
@@ -83,7 +77,11 @@ class GPIOLED(Scene):
 
         all_ = [
             t_led, t_3_3v_not, t_3_3v_led, t_ohms,
-            w_gpio_not, w_not_led, w_led_power, w_not_power, w_res_power,
+
+            w_not_power, w_res_power,
+            w_gpio_not,
+
+            w_not_led, w_led_power,
 
             v_gpio, v_not, v_led, v_resistor
         ]

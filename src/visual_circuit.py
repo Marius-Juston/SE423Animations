@@ -1,6 +1,8 @@
-from typing import Sequence
+from functools import partial
+from typing import Sequence, Self, Callable
 
 from manim import *
+from manim.typing import Vector3DLike, Point3D
 
 ANIMATE = True
 
@@ -16,7 +18,8 @@ class CircuitShape(VGroup):
 
             shape = self.fill_shape.animate if ANIMATE else self.fill_shape
 
-            return stroke, shape.set_fill(color=target_color, opacity=0.8 if is_active else 0.2), shape.set_stroke(color=target_color)
+            return stroke, shape.set_fill(color=target_color, opacity=0.8 if is_active else 0.2), shape.set_stroke(
+                color=target_color)
 
 
 class VisualGroup(CircuitShape):
@@ -38,6 +41,69 @@ class VisualGroup(CircuitShape):
         return animations
 
 
+def center_return(com: VectorizedPoint):
+    return com.get_location()
+
+
+class LocalCoordinate(VGroup):
+    get_top_left: Callable[[], np.ndarray]
+    get_top_right: Callable[[], np.ndarray]
+    get_bottom_left: Callable[[], np.ndarray]
+    get_bottom_right: Callable[[], np.ndarray]
+
+    def __init__(self, component, debug=False, **kwargs):
+        super().__init__(**kwargs)
+
+        for fun in (component.get_right,
+                    component.get_left,
+                    component.get_top,
+                    component.get_bottom,
+                    component.get_center):
+            variable_name = f"p_{fun.__name__}"
+
+            comp = VectorizedPoint(location=fun())
+            setattr(self, variable_name, comp)
+
+            self.add(comp)
+
+            setattr(self, fun.__name__, partial(center_return, comp))
+
+        # Corner points
+        for tb in ['top', 'bottom']:
+            for rl in ['right', 'left']:
+                name = f"{tb}_{rl}"
+
+                tb_v = getattr(self, f"get_{tb}")()
+                rl_v = getattr(self, f"get_{rl}")()
+
+                loc = same_x(rl_v, tb_v)
+
+                comp = VectorizedPoint(location=loc)
+                setattr(self, f"p_{name}", comp)
+
+                self.add(comp)
+
+                setattr(self, f"get_{name}", partial(center_return, comp))
+
+        if debug:
+            r = 0.1
+            for comp in self.submobjects[:]:
+                self.add(Circle(radius=r).move_to(comp.get_location()))
+
+
+class Pins(VGroup):
+    def __init__(self, *locations, **kwargs):
+        super().__init__(**kwargs)
+
+        for v in locations:
+            point = VectorizedPoint(location=v)
+
+            self.add(point)
+
+    def __getitem__(self, item):
+        return self.submobjects[item].get_location()
+
+
 class VisualGate(CircuitShape):
     margin = 0.2
 
@@ -45,6 +111,9 @@ class VisualGate(CircuitShape):
         super().__init__(**kwargs)
         self.fill_shape = VGroup()
         self.num_inputs = 2
+        self.num_outputs = 1
+
+        self.center_shape = None
 
         # TODO should probably just make VisualGate be an abstract class or something
         if gate_type == "OR":
@@ -113,38 +182,88 @@ class VisualGate(CircuitShape):
                 **params
             )
 
+            shape = VGroup(diode, cathode)
+
             self.fill_shape = VGroup(
-                diode,
-                cathode,
+                shape,
                 arrow_1,
                 arrow_2,
             )
 
+            self.center_shape = shape
+
         else:
             raise ValueError("Unknown gate_type")
 
+        if self.center_shape is None:
+            self.center_shape = self.fill_shape
+
+        self.local_transform = LocalCoordinate(self.center_shape)
+
         self.add(self.fill_shape)
+        self.add(self.local_transform)
+
         self.set_active(False)
 
-    def get_out(self):
-        return self.get_right()
+        self.actual = False
+        self.prev_actual = self.actual
 
-    def get_in(self, n=0):
-        top_left = same_x(self.get_left(), self.get_top())
-        bottom_left = same_x(self.get_left(), self.get_bottom())
+        self.input_pins = Pins(self.compute_entry_points(is_input=True))
+        self.output_pins = Pins(self.compute_entry_points(is_input=False))
 
-        if self.num_inputs == 1:
-            return (top_left + bottom_left) / 2
+        self.pins = VGroup(self.input_pins, self.output_pins)
 
-        range_ = top_left - bottom_left
+        self.add(self.pins)
+
+    def get_critical_point(self, direction: Vector3DLike) -> Point3D:
+        if self.actual:
+            return super().get_critical_point(direction)
+
+        return self.center_shape.get_critical_point(direction)
+
+    def compute_entry_points(self, is_input=True) -> np.ndarray:
+        if is_input:
+            top = self.local_transform.get_top_left()
+            bottom = self.local_transform.get_bottom_left()
+            num_vals = self.num_inputs
+        else:
+            top = self.local_transform.get_top_right()
+            bottom = self.local_transform.get_bottom_right()
+            num_vals = self.num_outputs
+
+        if num_vals == 1:
+            return (top + bottom) / 2
+
+        range_ = top - bottom
 
         margined_range = range_ * VisualGate.margin
 
         res = margined_range / 2
 
-        width = np.linspace(top_left - res, bottom_left + res, num=self.num_inputs)
+        width = np.linspace(top - res, bottom + res, num=self.num_inputs)
 
-        return width[n]
+        return width
+
+    def get_out(self, n=0):
+        return self.output_pins[n]
+
+    def get_in(self, n=0):
+        return self.input_pins[n]
+
+    def toggle_actual(self) -> Self:
+        self.prev_actual = self.actual
+        self.actual = not self.actual
+
+        return self
+
+    def __enter__(self):
+        self.prev_actual = self.actual
+        self.actual = True
+
+        return self
+
+    def __exit__(self, *exc):
+        self.actual = self.prev_actual
 
 
 class VisualBlock(CircuitShape):
@@ -186,6 +305,7 @@ class VisualWire(CircuitShape):
         shape = self.line.animate if ANIMATE else self.line
 
         return shape.set_color(YELLOW if is_active else GREY).set_stroke(width=6 if is_active else 2)
+
 
 class VisualResistor(VisualWire):
     def __init__(self):
