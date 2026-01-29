@@ -1,5 +1,6 @@
 import heapq
 import math
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import List, Tuple, Set
 
@@ -340,6 +341,56 @@ class Router:
 
             congestion_multiplier *= 1.5
 
+    def _extract_segments(self):
+        """
+        Returns a list of segments:
+        (net_id, x1, y1, x2, y2)
+        """
+        segments = []
+
+        for net_id, path in self.routed_paths.items():
+            if len(path) < 2:
+                continue
+
+            start = path[0]
+            prev = path[0]
+
+            for p in path[1:] + [None]:
+                if p is None or not (p.x == start.x or p.y == start.y):
+                    segments.append((net_id, start.x, start.y, prev.x, prev.y))
+                    if p is not None:
+                        start = p
+                prev = p
+
+        return segments
+
+    def find_crossings(self):
+        """
+        Returns a list of crossing points: (x, y, [(net_id, segment_id), ...])
+        """
+        cell_map = defaultdict(list)
+
+        segments = self._extract_segments()
+
+        for seg_id, (net_id, x1, y1, x2, y2) in enumerate(segments):
+            if x1 == x2:
+                # Vertical
+                y_lo, y_hi = sorted([y1, y2])
+                for y in range(y_lo + 1, y_hi):
+                    cell_map[(x1, y)].append(net_id)
+            else:
+                # Horizontal
+                x_lo, x_hi = sorted([x1, x2])
+                for x in range(x_lo + 1, x_hi):
+                    cell_map[(x, y1)].append(net_id)
+
+        crossings = []
+        for (x, y), nets in cell_map.items():
+            if len(set(nets)) > 1:
+                crossings.append((x, y, nets))
+
+        return crossings
+
     def visualize(self):
         fig, ax = plt.subplots(figsize=(10, 10))
 
@@ -386,18 +437,48 @@ class Router:
 
                 segments[segement_counter].append(new_point)
 
-            for path in segments:
-                xs = [p.x for p in path]
-                ys = [p.y for p in path]
+            for g in segments:
+                xs = [p.x for p in g]
+                ys = [p.y for p in g]
 
                 # Draw wires
                 ax.plot(xs, ys, color=colors[net_id], linewidth=2.5, alpha=0.8, zorder=1)
 
-                # Draw pins
-                pins = self.nets[net_id]
-                px = [p.x for p in pins]
-                py = [p.y for p in pins]
-                ax.scatter(px, py, color=colors[net_id], s=100, edgecolors='black', zorder=3, label=f'Net {net_id}')
+            # Draw pins
+            pins = self.nets[net_id]
+            px = [p.x for p in pins]
+            py = [p.y for p in pins]
+            ax.scatter(px, py, color=colors[net_id], s=100, edgecolors='black', zorder=3, label=f'Net {net_id}')
+
+            connections = []
+
+            for g in segments:
+                if len(pins) <= 2:
+                    continue
+
+                for i in [0, -1]:
+                    if g[i] not in pins:
+                        connections.append(g[i])
+
+            px = [p.x for p in connections]
+            py = [p.y for p in connections]
+            ax.scatter(px, py, color=colors[net_id], s=100, edgecolors='black', zorder=3, label=f'Net {net_id}')
+
+        crossings = self.find_crossings()
+
+        if crossings:
+            cx = [x for x, _, _ in crossings]
+            cy = [y for _, y, _ in crossings]
+
+            ax.scatter(
+                cx, cy,
+                marker='x',
+                s=120,
+                color='black',
+                linewidths=2,
+                zorder=5,
+                label="Crossing"
+            )
 
         ax.set_xlim(0, self.width)
         ax.set_ylim(0, self.height)
@@ -434,7 +515,7 @@ def main():
 
     # Net 3: Crossing Net 1 to test Overlap Resolution (CPU bottom to far right)
     # This forces a route that might conflict with Net 1 or Net 2
-    router.add_net([(14, 10), (10, 11), (40, 5)])
+    router.add_net([(14, 10), (10, 11), (40, 5), (10, 40)])
 
     router.add_net([(5, 39), (40, 10)])
 
