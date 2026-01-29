@@ -1,18 +1,18 @@
-import math
-
-import numpy as np
 import heapq
-import networkx as nx
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+import math
 from dataclasses import dataclass
-from typing import List, Tuple, Dict, Set
+from typing import List, Tuple, Set
+
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
 
 # --- Configuration ---
-GRID_SCALE = 1  # Resolution of the routing grid
+GRID_SCALE = 0.1  # Resolution of the routing grid
 BEND_PENALTY = 50  # Cost added for making a 90-degree turn
 BASE_COST = 1  # Cost to move 1 unit
-MAX_ITERATIONS = 20  # Max rip-up and reroute attempts
+MAX_ITERATIONS = 4  # Max rip-up and reroute attempts
 
 MARGIN = 2
 
@@ -57,8 +57,6 @@ class Component:
         return Component(self.name, self.x - margin, self.y - margin, self.width + margin * 2, self.height + margin * 2)
 
 
-
-
 class Router:
     def __init__(self, width, height):
         self.width = width
@@ -71,27 +69,57 @@ class Router:
         self.nets = []  # List of list of Points
         self.routed_paths = {}  # Map net_id -> List of Points
 
+    def _pin_escape(self, pin: Point):
+        """
+        If pin is inside a component margin, return (escape_path, escape_point).
+        Otherwise, return ([], pin).
+        """
+        for comp in self.components:
+            comp_expanded = comp + MARGIN
+            xmin, ymin, xmax, ymax = comp_expanded.int_bbox
+
+            if xmin <= pin.x < xmax and ymin <= pin.y < ymax:
+                # Determine nearest face
+                dists = {
+                    Point(-1, 0): abs(pin.x - xmin),
+                    Point(1, 0): abs(xmax - pin.x),
+                    Point(0, -1): abs(pin.y - ymin),
+                    Point(0, 1): abs(ymax - pin.y),
+                }
+                direction = min(dists, key=dists.get)
+
+                path = [pin]
+                p = pin
+                while True:
+                    p = p + direction
+                    path.append(p)
+                    if not (xmin <= p.x < xmax and ymin <= p.y < ymax):
+                        break
+
+                return path, p
+
+        return [], pin
+
     def add_component(self, comp: Component):
         self.components.append(comp)
-
         comp_scale = comp + MARGIN
         comp_int_bounding = comp_scale.int_bbox
 
-        # Mark component area as obstacle (high base occupancy)
-        # In a real scenario, you might allow routing OVER components on different layers,
-        # but here we treat them as blockages except for their pins.
+        # Mark component area as effectively blocked
+        # Use a cost high enough that going around is ALWAYS cheaper,
+        # but low enough that we can 'escape' a pin if it starts inside.
+        OBSTACLE_COST = 100000
+
         for i in range(comp_int_bounding[0], comp_int_bounding[2]):
             for j in range(comp_int_bounding[1], comp_int_bounding[3]):
                 if 0 <= i < self.width and 0 <= j < self.height:
-                    self.grid_occupancy[i, j] += 1000  # High initial cost for component bodies
+                    self.grid_occupancy[i, j] += OBSTACLE_COST
 
     def add_net(self, pins: List[Tuple[int, int]]):
-        # Convert tuples to Points
         self.nets.append([Point(x, y) for x, y in pins])
 
     def _get_neighbors(self, current: Point):
         neighbors = []
-        # Directions: Right, Left, Up, Down
         directions = [Point(1, 0), Point(-1, 0), Point(0, 1), Point(0, -1)]
         for d in directions:
             n = current + d
@@ -124,75 +152,66 @@ class Router:
             connections.append((pins[u], pins[v]))
         return connections
 
-    def _astar(self, start: Point, end: Point, congestion_multiplier: float):
-        """
-        A* Search with Bend Penalty and Congestion Costs.
-        State: (cost, x, y, last_dx, last_dy)
-        """
-        # Priority Queue: (f_score, g_score, current_point, last_direction)
+    # ---------------------------------------------------------
+    # 1. UPGRADED A*: Supports Multiple Targets (Steiner Zones)
+    # ---------------------------------------------------------
+    def _astar_multi_target(self, start: Point, targets: Set[Point], congestion_multiplier: float):
         pq = []
+        # Priority Queue: (f_score, g_score, current_point, last_direction)
         heapq.heappush(pq, (0, 0, start, Point(0, 0)))
 
         came_from = {}
         g_scores = {(start, Point(0, 0)): 0}
 
-        best_path_cost = float('inf')
         best_end_state = None
+        min_g_to_target = float('inf')
 
         while pq:
             f, g, current, last_dir = heapq.heappop(pq)
 
-            if g > best_path_cost:
+            if g >= min_g_to_target:
                 continue
 
-            if current == end:
-                if g < best_path_cost:
-                    best_path_cost = g
+            if current in targets:
+                if g < min_g_to_target:
+                    min_g_to_target = g
                     best_end_state = (current, last_dir)
                 continue
 
             for neighbor in self._get_neighbors(current):
-                # Calculate movement vector
                 new_dir = neighbor - current
 
-                # --- COST CALCULATION ---
-
-                # 1. Base distance cost
+                # 1. Base Cost
                 step_cost = BASE_COST
-
-                # 2. Bend Penalty
                 if last_dir != Point(0, 0) and new_dir != last_dir:
                     step_cost += BEND_PENALTY
 
-                # 3. Congestion Cost (The PathFinder Magic)
-                # Cost = Base + (Occupancy * Multiplier) + History
-                # We subtract 1 from occupancy because the net itself counts as 1,
-                # but self-overlap shouldn't be penalized during its own routing phase.
+                # 2. Congestion Cost
                 occ = max(0, self.grid_occupancy[neighbor.x, neighbor.y])
                 hist = self.history_cost[neighbor.x, neighbor.y]
 
-                # If occupancy > 0 (meaning another net is here), cost shoots up
-                congestion_cost = (occ * congestion_multiplier) + hist
+                # CRITICAL FIX: Pin Exemption
+                # If the neighbor is a target, we ignore its occupancy cost.
+                # This allows the wire to 'dock' into a pin located inside a red margin.
+                if neighbor in targets:
+                    congestion_cost = 0
+                else:
+                    congestion_cost = (occ * congestion_multiplier) + hist
 
-                # Note: We relax the component body blockages for the pin entry/exit points
-                # by assuming pins sit ON the boundary. Ideally, we check if neighbor is a pin.
-
-                total_step_cost = step_cost + congestion_cost
-                new_g = g + total_step_cost
+                new_g = g + step_cost + congestion_cost
 
                 if new_g < g_scores.get((neighbor, new_dir), float('inf')):
                     g_scores[(neighbor, new_dir)] = new_g
-                    # Heuristic: Manhattan Distance
-                    h = abs(neighbor.x - end.x) + abs(neighbor.y - end.y)
+                    h = min(abs(neighbor.x - t.x) + abs(neighbor.y - t.y) for t in targets)
                     heapq.heappush(pq, (new_g + h, new_g, neighbor, new_dir))
                     came_from[(neighbor, new_dir)] = (current, last_dir)
 
         if best_end_state:
-            # Reconstruct path
             path = []
             curr, direction = best_end_state
             while curr != start:
                 path.append(curr)
+                if (curr, direction) not in came_from: break
                 prev_node, prev_dir = came_from[(curr, direction)]
                 curr = prev_node
                 direction = prev_dir
@@ -201,67 +220,124 @@ class Router:
 
         return None
 
+    # ---------------------------------------------------------
+    # 2. NEW ROUTING LOGIC: Iterative Steiner Construction
+    # ---------------------------------------------------------
     def route(self):
-        """
-        Executes the PathFinder iterative routing algorithm.
-        """
-        congestion_multiplier = 0.5  # Starts low, increases every iteration
-
-        print(f"Starting routing for {len(self.nets)} nets...")
+        congestion_multiplier = 0.5
+        print(f"Starting Steiner Routing for {len(self.nets)} nets...")
 
         for iteration in range(MAX_ITERATIONS):
-            print(f"Iteration {iteration + 1}...")
-            max_overlap = 0
+            # 1. Clear Occupancy
+            self.grid_occupancy.fill(0)
 
-            # 1. Rip-up and Reroute all nets
+            # 2. Re-apply Component Obstacles (High Cost)
+            OBSTACLE_COST = 100000
+            for c in self.components:
+                c_scale = c + MARGIN
+                bbox = c_scale.int_bbox
+                # Use slicing for speed
+                # Note: bbox is (min_x, min_y, max_x, max_y)
+                # Numpy slicing is [min_x:max_x, min_y:max_y]
+                self.grid_occupancy[bbox[0]:bbox[2], bbox[1]:bbox[3]] += OBSTACLE_COST
+
+            # 3. Re-apply Net Occupancy from previous iteration (for negotiations)
+            # We want wires to negotiate with OTHER wires, but never with components.
+            # So wires add a smaller cost (e.g., 1) compared to components (100,000)
+            for net_id, path in self.routed_paths.items():
+                for p in path:
+                    self.grid_occupancy[p.x, p.y] += 100  # Wire overlap cost
+
+            current_overlaps = 0
+
+            # 4. Route Each Net
             for net_id, pins in enumerate(self.nets):
+                if not pins: continue
 
-                # A. Rip-up: Remove old path from occupancy grid
+                # Rip-up current net from occupancy to route it fresh
                 if net_id in self.routed_paths:
                     for p in self.routed_paths[net_id]:
-                        self.grid_occupancy[p.x, p.y] -= 1
+                        self.grid_occupancy[p.x, p.y] -= 100
 
-                # B. Decompose Multi-pin net to 2-pin segments
-                segments = self._decompose_multipins(pins)
-
+                routed_pixels = set()
                 full_net_path = []
 
-                # C. Route each segment
-                for start, end in segments:
-                    # Note: Ideally we route on the graph of the partially routed net,
-                    # but simple segment routing works for small N.
-                    path = self._astar(start, end, congestion_multiplier)
+                # ---- NEW: escape first pin ----
+                escape_path, escape_point = self._pin_escape(pins[0])
+                for p in escape_path:
+                    routed_pixels.add(p)
+                    full_net_path.append(p)
+
+                routed_pixels.add(escape_point)
+                unconnected_pins = set(pins[1:])
+
+                while unconnected_pins:
+                    best_pin = None
+                    best_dist = float('inf')
+
+                    for p in unconnected_pins:
+                        d = min(abs(p.x - rp.x) + abs(p.y - rp.y) for rp in routed_pixels)
+                        if d < best_dist:
+                            best_dist = d
+                            best_pin = p
+
+                    # ---- NEW: escape target pin first ----
+                    escape_path, escaped_pin = self._pin_escape(best_pin)
+                    path = self._astar_multi_target(
+                        escaped_pin,
+                        routed_pixels,
+                        congestion_multiplier
+                    )
+
                     if path:
-                        # Don't duplicate points where segments join
-                        if full_net_path and path[0] == full_net_path[-1]:
-                            full_net_path.extend(path[1:])
-                        else:
-                            full_net_path.extend(path)
+                        # Add escape stub
+                        for p in escape_path:
+                            routed_pixels.add(p)
+                            full_net_path.append(p)
+
+                        # Add A* path
+                        for p in path:
+                            routed_pixels.add(p)
+                            full_net_path.append(p)
+
+                        unconnected_pins.remove(best_pin)
+                    else:
+                        break
 
                 self.routed_paths[net_id] = full_net_path
 
-                # D. Update Occupancy
+                # Re-apply occupancy
                 for p in full_net_path:
-                    self.grid_occupancy[p.x, p.y] += 1
+                    self.grid_occupancy[p.x, p.y] += 100
 
-            # 2. Check Congestion & Update History
-            overlaps = np.where(self.grid_occupancy > 1)
-            overlap_count = len(overlaps[0])
-            print(f"  -> Overlaps found: {overlap_count}")
+            # 5. Check Congestion
+            # We only care about Wire-Wire overlaps (value > 100 but < OBSTACLE_COST)
+            # Or strict overlaps where value > 100 (implies 2 wires)
+            # Component overlap is technically allowed (value > 100000) only for escape
 
-            if overlap_count == 0:
-                print("  -> Solution found with 0 overlaps.")
+            # Simple overlap check: finding cells with > 1 wire
+            # Since 1 wire = 100, 2 wires = 200. Components are 100000.
+            # We check modulo or ranges.
+
+            overlaps = []
+            for x in range(self.width):
+                for y in range(self.height):
+                    val = self.grid_occupancy[x, y]
+                    # If val > 100000: It's a component.
+                    # If val % 100000 > 100: It implies > 1 wire is here.
+                    wire_cost = val % 100000
+                    if wire_cost > 100:  # More than 1 wire (each wire is 100)
+                        overlaps.append((x, y))
+
+            current_overlaps = len(overlaps)
+            print(f"  Iteration {iteration + 1}: Overlaps: {current_overlaps}")
+
+            if current_overlaps == 0:
                 break
 
-            # 3. Increase Penalties for next round
-            # Increase history cost for currently congested nodes
-            # This "poisons" the node so nets try to avoid it permanently
-            for x, y in zip(*overlaps):
-                if self.grid_occupancy[x, y] > 100:  # Ignore component bodies
-                    continue
-                self.history_cost[x, y] += 1 * (iteration + 1)
+            for x, y in overlaps:
+                self.history_cost[x, y] += 10 * (iteration + 1)
 
-            # Increase the immediate cost of conflict
             congestion_multiplier *= 1.5
 
     def visualize(self):
@@ -282,7 +358,6 @@ class Router:
                                      linewidth=2, edgecolor='black', facecolor='lightgray', zorder=2)
             ax.add_patch(rect)
 
-
             ax.text(comp.x + comp.width / 2, comp.y + comp.height / 2, comp.name,
                     ha='center', va='center', weight='bold')
 
@@ -292,17 +367,37 @@ class Router:
         for net_id, path in self.routed_paths.items():
             if not path: continue
 
-            xs = [p.x for p in path]
-            ys = [p.y for p in path]
+            segments = [[]]
 
-            # Draw wires
-            ax.plot(xs, ys, color=colors[net_id], linewidth=2.5, alpha=0.8, zorder=1)
+            prev_point = path[0]
 
-            # Draw pins
-            pins = self.nets[net_id]
-            px = [p.x for p in pins]
-            py = [p.y for p in pins]
-            ax.scatter(px, py, color=colors[net_id], s=100, edgecolors='black', zorder=3, label=f'Net {net_id}')
+            segement_counter = 0
+
+            segments[segement_counter].append(prev_point)
+
+            for i in range(1, len(path)):
+                new_point = path[i]
+
+                if not (new_point.x == prev_point.x or new_point.y == prev_point.y):
+                    segement_counter += 1
+                    segments.append([])
+
+                prev_point = new_point
+
+                segments[segement_counter].append(new_point)
+
+            for path in segments:
+                xs = [p.x for p in path]
+                ys = [p.y for p in path]
+
+                # Draw wires
+                ax.plot(xs, ys, color=colors[net_id], linewidth=2.5, alpha=0.8, zorder=1)
+
+                # Draw pins
+                pins = self.nets[net_id]
+                px = [p.x for p in pins]
+                py = [p.y for p in pins]
+                ax.scatter(px, py, color=colors[net_id], s=100, edgecolors='black', zorder=3, label=f'Net {net_id}')
 
         ax.set_xlim(0, self.width)
         ax.set_ylim(0, self.height)
@@ -339,13 +434,16 @@ def main():
 
     # Net 3: Crossing Net 1 to test Overlap Resolution (CPU bottom to far right)
     # This forces a route that might conflict with Net 1 or Net 2
-    router.add_net([(14, 10), (40, 5)])
+    router.add_net([(14, 10), (10, 11), (40, 5)])
+
+    router.add_net([(5, 39), (40, 10)])
 
     # 4. Run Routing
     router.route()
 
     # 5. Show Result
     router.visualize()
+
 
 if __name__ == '__main__':
     main()
