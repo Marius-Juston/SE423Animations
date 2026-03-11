@@ -55,7 +55,7 @@ class PWMAnimation(Scene):
         duty_cycle = 0.5
         pwm_signal = create_pwm_signal(duty_cycle)
         duty_text = Text(f"Duty Cycle: {int(duty_cycle * 100)}%", font_size=32)
-        duty_text.next_to(axes, RIGHT, buff=0.5)
+        duty_text.next_to(axes, UP, buff=0.5)
 
         self.play(Create(pwm_signal), Write(duty_text))
 
@@ -90,7 +90,7 @@ class PWMAnimation(Scene):
         duty_cycle = 0.25
         new_pwm_signal = create_pwm_signal(duty_cycle)
         new_duty_text = Text(f"Duty Cycle: {int(duty_cycle * 100)}%", font_size=32)
-        new_duty_text.next_to(axes, RIGHT, buff=0.5)
+        new_duty_text.next_to(axes, UP, buff=0.5)
 
         brightness_label = Text("Brightness: Lower", font_size=24, color=ORANGE)
         brightness_label.next_to(led_label, DOWN)
@@ -126,7 +126,7 @@ class PWMAnimation(Scene):
         duty_cycle = 0.75
         new_pwm_signal_75 = create_pwm_signal(duty_cycle)
         new_duty_text_75 = Text(f"Duty Cycle: {int(duty_cycle * 100)}%", font_size=32)
-        new_duty_text_75.next_to(axes, RIGHT, buff=0.5)
+        new_duty_text_75.next_to(axes, UP, buff=0.5)
 
         new_brightness_label = Text("Brightness: Higher", font_size=24, color=ORANGE)
         new_brightness_label.next_to(led_label, DOWN)
@@ -158,19 +158,8 @@ class PWMAnimation(Scene):
         )
         self.wait(0.5)
 
-        # Final comparison
-        comparison_text = Text(
-            "PWM controls LED brightness\nby varying the ON time percentage",
-            font_size=28,
-            line_spacing=1.2
-        ).to_edge(DOWN)
-
-        self.play(Write(comparison_text))
-        self.wait(1)
-
         # Transition to macroscopic view
         self.play(
-            FadeOut(comparison_text),
             FadeOut(brightness_label),
             FadeOut(dot)
         )
@@ -181,31 +170,20 @@ class PWMAnimation(Scene):
         self.wait(1)
         self.play(FadeOut(transition_text))
 
-        # Create new axes for macroscopic view (much wider time scale)
-        macro_axes = Axes(
-            x_range=[0, 100, 20],
-            y_range=[0, 1.2, 0.5],
-            x_length=10,
-            y_length=2,
-            axis_config={"color": BLUE},
-            tips=False
-        ).shift(UP * 0.5)
-
-        macro_x_label = Text("Time (Human Scale)", font_size=24).next_to(macro_axes.x_axis, DOWN)
-        macro_y_label = Text("Signal", font_size=24).next_to(macro_axes.y_axis, LEFT).rotate(PI / 2)
-
         # Transform axes to show zoom out effect
         self.play(
-            Transform(axes, macro_axes),
-            Transform(x_label, macro_x_label),
-            Transform(y_label, macro_y_label),
             FadeOut(pwm_signal),
-            FadeOut(duty_text)
+            FadeOut(axes),
+            FadeOut(x_label),
+            FadeOut(y_label),
+            FadeOut(duty_text),
+            FadeOut(led_circle), 
+            FadeOut(led_label)
         )
         self.wait(0.5)
 
         perception_text = Text("At high frequencies, human eye sees average brightness",
-                               font_size=28).to_edge(DOWN)
+                               font_size=28).to_edge(DOWN, buff=1)
         self.play(Write(perception_text))
 
         # Show three LEDs with different duty cycles side by side
@@ -216,48 +194,29 @@ class PWMAnimation(Scene):
 
         leds = VGroup()
         led_texts = VGroup()
-        brightness_bars = VGroup()
-
-        self.play(FadeOut(led_circle), FadeOut(led_label))
 
         for pos, duty, label_text, brightness in zip(led_positions, duty_cycles, led_labels_text, brightness_levels):
             # LED circle with constant brightness (average of PWM)
             led = Circle(radius=0.5, color=YELLOW, fill_opacity=brightness,
-                         stroke_width=2, stroke_color=WHITE).shift(pos + DOWN * 2)
+                         stroke_width=2, stroke_color=WHITE).shift(pos)
 
             # Label
-            led_text = Text(label_text, font_size=22).next_to(led, DOWN, buff=0.3)
+            led_text = Text(label_text, font_size=22).next_to(led, UP, buff=0.3)
 
-            # Brightness bar
-            bar_back = Rectangle(width=0.4, height=1.5, color=GRAY, fill_opacity=0.3)
-            bar_back.next_to(led, UP, buff=0.3)
-
-            bar_fill = Rectangle(width=0.4, height=1.5 * brightness, color=YELLOW,
-                                 fill_opacity=0.8, stroke_width=0)
-            bar_fill.align_to(bar_back, DOWN)
-
-            brightness_bars.add(VGroup(bar_back, bar_fill))
+           
             leds.add(led)
             led_texts.add(led_text)
+            
+        # Show brightness bars
+        bar_label = Text("Perceived Brightness", font_size=20).next_to(led_texts, UP)
 
         # Animate LEDs appearing with their perceived brightness
         self.play(
             LaggedStart(*[FadeIn(led) for led in leds], lag_ratio=0.3),
             LaggedStart(*[Write(text) for text in led_texts], lag_ratio=0.3),
+            Write(bar_label),
             run_time=2
         )
-        self.wait(0.5)
-
-        # Show brightness bars
-        bar_label = Text("Perceived Brightness", font_size=20).next_to(brightness_bars, UP)
-        self.play(Write(bar_label))
-
-        for bar_group in brightness_bars:
-            self.play(
-                FadeIn(bar_group[0]),
-                GrowFromEdge(bar_group[1], DOWN),
-                run_time=0.8
-            )
 
         self.wait(1)
 
@@ -275,49 +234,22 @@ class PWMAnimation(Scene):
         ).next_to(micro_reminder, DOWN, buff=0.2)
 
         self.play(
-            FadeOut(title),
             FadeOut(perception_text),
             Write(micro_reminder),
             Write(macro_reminder)
         )
-        self.wait(1)
-
-        # Show frequency note
-        freq_note = Text(
-            "PWM frequency >> Human eye perception (~60 Hz)",
-            font_size=24,
-            color=ORANGE
-        ).to_edge(DOWN)
-
-        self.play(Write(freq_note))
         self.wait(2)
 
-        # Final summary animation - pulse effect on all LEDs simultaneously
         self.play(
-            *[led.animate.set_fill(opacity=min(1, brightness * 1.3))
-              for led, brightness in zip(leds, brightness_levels)],
-            rate_func=there_and_back,
-            run_time=1
-        )
-        self.wait(1)
-
-        final_text = Text(
-            "PWM enables precise brightness control\nwithout changing voltage",
-            font_size=28,
-            line_spacing=1.2
-        ).move_to(ORIGIN + UP * 1.5)
-
-        self.play(
+            FadeOut(title),
             FadeOut(micro_reminder),
             FadeOut(macro_reminder),
-            FadeOut(freq_note),
-            FadeOut(axes),
-            FadeOut(x_label),
-            FadeOut(y_label),
-            Write(final_text)
+            FadeOut(leds),
+            FadeOut(led_texts),
+            FadeOut(bar_label),
         )
 
-        self.wait(3)
+        self.wait(1)
 
 # To render this animation, save it to a file (e.g., pwm_animation.py) and run:
 # manim -pql pwm_animation.py PWMAnimation
