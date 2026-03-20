@@ -135,7 +135,12 @@ RGB = np.clip(RGB , 0, 1)
 
 # --- Plot Top View (a*, b*) ---
 fig = plt.figure(figsize=(7, 7))
-plt.scatter(a, b, c=RGB, s=1, alpha=0.8)
+
+step_size = 1
+
+order = np.argsort(L)
+
+plt.scatter(a[order][::step_size], b[order][::step_size], c=RGB[order][::step_size], s=1, alpha=0.8)
 plt.xlabel("a*")
 plt.ylabel("b*")
 plt.title("Optimal Colors (D65) - Top View")
@@ -144,11 +149,13 @@ plt.grid(True, linestyle=':', alpha=0.6)
 plt.tight_layout()
 
 fig.savefig("optimal_colors_3d_top.svg")
-fig.savefig("optimal_colors_3d_top.png", dpi=300)
+fig.savefig("optimal_colors_3d_top.png", dpi=300, transparent=True)
 
 # --- Plot Left View (L*, a*) ---
 fig = plt.figure(figsize=(7, 7))
-plt.scatter(a, L, c=RGB, s=1, alpha=0.8)
+
+order = np.argsort(b)
+plt.scatter(a[order][::step_size], L[order][::step_size], c=RGB[order][::step_size], s=1, alpha=0.8)
 plt.xlabel("a*")
 plt.ylabel("L*")
 plt.title("Optimal Colors (D65) - Left View")
@@ -157,7 +164,7 @@ plt.tight_layout()
 
 
 fig.savefig("optimal_colors_3d_left.svg")
-fig.savefig("optimal_colors_3d_left.png", dpi=300)
+fig.savefig("optimal_colors_3d_left.png", dpi=300, transparent=True)
 
 plt.show()
 
