@@ -80,6 +80,10 @@ class BlobDetection(Scene):
 
         pixel_grid.scale(scale_factor)
 
+        extra_margin = 0.05 * config.frame_height
+        pixel_grid.move_to(ORIGIN)
+        pixel_grid.shift(DOWN * extra_margin)
+
         self.play(Write(pixel_grid))
 
         self.wait(1)
@@ -148,7 +152,7 @@ class BlobDetection(Scene):
 
                 num_variables = 0
 
-                variable = Variable(var=num_variables, label=f"Group {group_count}", var_type=Integer)
+                variable = Variable(var=num_variables, label=f"{group_count}", var_type=Integer)
 
                 if len(variables) == 0:
                     variable.next_to(pixel_grid, RIGHT).align_to(pixel_grid, UP)
@@ -202,21 +206,21 @@ class BlobDetection(Scene):
         self.wait(1)
 
 
-class Test(Scene):
-    def construct(self):
-        variable = Variable(var=1, label=f"1", var_type=Integer)
-
-        self.play(Write(variable))
-
-        animations = []
-
-        for i in range(10):
-            animations.append(variable.tracker.animate(run_time=0.1).set_value(i))
-            animations.append(Wait(1))
-
-        self.play(Succession(*animations))
-
-        self.wait(1)
+# class Test(Scene):
+#     def construct(self):
+#         variable = Variable(var=1, label=f"1", var_type=Integer)
+#
+#         self.play(Write(variable))
+#
+#         animations = []
+#
+#         for i in range(10):
+#             animations.append(variable.tracker.animate(run_time=0.1).set_value(i))
+#             animations.append(Wait(1))
+#
+#         self.play(Succession(*animations))
+#
+#         self.wait(1)
 
 if __name__ == '__main__':
     from manim import config
