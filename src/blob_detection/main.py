@@ -138,6 +138,13 @@ class BlobDetection(Scene):
 
         variables = VGroup()
 
+        text = Text("Group:")
+
+        text.next_to(pixel_grid, RIGHT).align_to(pixel_grid, UP)
+        variables.add(text)
+
+        self.play(Write(text))
+
         for i, x, y in zip(index, xI, yI):
             current_pose = (x, y)
 
@@ -154,10 +161,7 @@ class BlobDetection(Scene):
 
                 variable = Variable(var=num_variables, label=f"{group_count}", var_type=Integer)
 
-                if len(variables) == 0:
-                    variable.next_to(pixel_grid, RIGHT).align_to(pixel_grid, UP)
-                else:
-                    variable.next_to(variables[-1], DOWN, buff=0.5)
+                variable.next_to(variables[-1], DOWN, buff=0.5)
 
                 variables.add(variable)
                 # animations.append(Write(variable))
