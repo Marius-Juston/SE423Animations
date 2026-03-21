@@ -94,7 +94,7 @@ class BlobDetection(Scene):
 
         self.wait(1)
 
-        text = Text("We mask value > 75 to be red")
+        text = Text("We mask values > 75 to be red")
 
         text.next_to(pixel_grid, UP)
 
@@ -118,7 +118,42 @@ class BlobDetection(Scene):
 
         self.play(TransformMatchingShapes(text, text2))
 
-        animations = []
+        dashboard = VGroup()
+        dashboard_title = Text("Moments", font_size=32, color=YELLOW)
+
+        m00_tracker = ValueTracker(0.0)
+        m10_tracker = ValueTracker(0.0)
+        m01_tracker = ValueTracker(0.0)
+
+        m00_row = VGroup(MathTex(r"M_{00} \text{ (Area)}:"), Integer(0)).arrange(RIGHT)
+        m10_row = VGroup(MathTex(r"M_{10}:"), Integer(0)).arrange(RIGHT)
+        m01_row = VGroup(MathTex(r"M_{01}:"), Integer(0)).arrange(RIGHT)
+        xbar_row = VGroup(MathTex(r"\bar{x}:"), DecimalNumber(0, num_decimal_places=2)).arrange(RIGHT)
+        ybar_row = VGroup(MathTex(r"\bar{y}:"), DecimalNumber(0, num_decimal_places=2)).arrange(RIGHT)
+
+        dashboard.add(dashboard_title, m00_row, m10_row, m01_row, xbar_row, ybar_row)
+        dashboard.arrange(DOWN, aligned_edge=LEFT, buff=0.3)
+        dashboard.to_edge(LEFT, buff=0.5)
+
+        m00_row[1].add_updater(lambda d: d.set_value(m00_tracker.get_value() if m00_tracker.get_value() >= 1 else 0))
+        m10_row[1].add_updater(lambda d: d.set_value(m10_tracker.get_value()))
+        m01_row[1].add_updater(lambda d: d.set_value(m01_tracker.get_value()))
+
+        xbar_row[1].add_updater(lambda d: d.set_value(
+            m10_tracker.get_value() / m00_tracker.get_value() if m00_tracker.get_value() >= 1 else 0))
+        ybar_row[1].add_updater(lambda d: d.set_value(
+            m01_tracker.get_value() / m00_tracker.get_value() if m00_tracker.get_value() >= 1 else 0))
+
+        p00 = pixels[0].get_center()  # Origin (0,0)
+        p10 = pixels[W].get_center()  # Row vector target (1,0) - one full row down
+        p01 = pixels[1].get_center()  # Col vector target (0,1) - one full col right
+
+        vec_row = p10 - p00
+        vec_col = p01 - p00
+
+
+
+        # animations = []
 
         colors = [
             ManimColor([0., 0., 255., 1.0]),
@@ -143,7 +178,6 @@ class BlobDetection(Scene):
         text.next_to(pixel_grid, RIGHT).align_to(pixel_grid, UP)
         variables.add(text)
 
-        self.play(Write(text))
 
         for i, x, y in zip(index, xI, yI):
             current_pose = (x, y)
@@ -157,15 +191,50 @@ class BlobDetection(Scene):
                 group_count += 1
                 queue = deque([current_pose])
 
+                group_color = colors[group_count % len(colors)]
+
                 num_variables = 0
 
-                variable = Variable(var=num_variables, label=f"{group_count}", var_type=Integer)
+                variable = Variable(var=num_variables, label=f"{group_count}", var_type=Integer, color=group_color)
 
                 variable.next_to(variables[-1], DOWN, buff=0.5)
 
                 variables.add(variable)
                 # animations.append(Write(variable))
+
+                if group_count == 1:
+                    self.play(Write(dashboard))
+                    self.play(Write(text))
+
                 self.play(Write(variable))
+
+                m00_tracker.set_value(0.0)
+                m10_tracker.set_value(0.0)
+                m01_tracker.set_value(0.0)
+
+                first_i = int(pose_to_index[current_pose])
+                initial_px_center = pixels[first_i].get_center()
+
+                radius = pixels[first_i].width / 2.0
+
+                centroid_dot = Dot(color=RED, radius=radius * 0.1, fill_opacity=0.75)
+                centroid_ring = Circle(radius=radius * 0.75, color=RED, stroke_width=4, stroke_opacity=0.75)
+                centroid_group = VGroup(centroid_dot, centroid_ring)
+                centroid_group.set_z_index(10)
+
+                centroid_group.move_to(initial_px_center)
+
+                def update_centroid_position(mob):
+                    m00 = m00_tracker.get_value()
+                    if m00 >= 1.0:
+                        x_bar = m01_tracker.get_value() / m00
+                        y_bar = m10_tracker.get_value() / m00
+
+                        physical_pos = p00 + (x_bar * vec_row) + (y_bar * vec_col)
+                        mob.move_to(physical_pos)
+
+                centroid_group.add_updater(update_centroid_position)
+                self.play(FadeIn(centroid_group), run_time=0.3)
 
                 while len(queue) != 0:
                     num_variables += 1
@@ -183,11 +252,26 @@ class BlobDetection(Scene):
 
                     self.play(Indicate(pixels[next_i], run_time=0.1))
                     self.play(AnimationGroup(pixels[next_i].set_value(group_count),
-                                                     pixels[next_i].set_square_color(
-                                                         colors[group_count % len(colors)]
-                                                     )))
+                                             pixels[next_i].set_square_color(group_color)))
 
-                    self.play(variable.tracker.animate(run_time=0.1).set_value(num_variables))
+                    # Moment computations
+                    px_center = next_pose
+
+                    current_m00 = m00_tracker.get_value()
+                    new_m00 = current_m00 + 1
+
+                    new_m10 = m10_tracker.get_value() + px_center[1]
+                    new_m01 = m01_tracker.get_value() + px_center[0]
+
+                    self.play(
+                        AnimationGroup(
+                            variable.tracker.animate.set_value(num_variables),
+                            m00_tracker.animate.set_value(new_m00),
+                            m10_tracker.animate.set_value(new_m10),
+                            m01_tracker.animate.set_value(new_m01)
+                            , run_time=0.2)
+                    )
+                    # Moments finished
 
                     x, y = next_pose
 
@@ -202,12 +286,14 @@ class BlobDetection(Scene):
                                 if pose not in val:
                                     queue.append(pose)
                                     val.add(pose)
+
+                centroid_group.remove_updater(update_centroid_position)
             else:
                 self.play(Indicate(pixels[i], run_time=0.1))
 
         # self.play(Succession(*animations))
 
-        self.wait(1)
+        self.wait(2)
 
 
 # class Test(Scene):
