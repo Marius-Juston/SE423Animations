@@ -1428,26 +1428,29 @@ class CIE1931Scene(Scene):
         X_g, Y_g, Z_g = spd_to_xyz(_green_spd, illuminant_d65_spd)
         green_srgb = np.clip(xyz_to_srgb(X_g, Y_g, Z_g), 0, 1)
 
-        patch = Rectangle(width=2.8, height=1.8,
+        patch = Rectangle(width=2.5, height=1.5,
                            fill_color=rgb_to_hex(green_srgb), fill_opacity=1.0,
                            stroke_width=0)
-        patch.move_to(LEFT * 2.5 + UP * 0.5)
+        patch.move_to(LEFT * 3.0 + UP * 1.8)
+
+        patch_lbl = Text("Green (540 nm)", font_size=14, color=TEXT_SEC)
+        patch_lbl.next_to(patch, DOWN, buff=0.12)
 
         q_mark = Text("?", font_size=64, color=TEXT_PRI, weight=BOLD)
         q_cap = Text("What numbers describe this?", font_size=18, color=TEXT_SEC)
         q_grp = VGroup(q_mark, q_cap).arrange(DOWN, buff=0.22)
-        q_grp.move_to(RIGHT * 2.8 + UP * 0.5)
+        q_grp.move_to(RIGHT * 2.8 + UP * 1.8)
 
-        self.play(FadeIn(patch), run_time=1.0)
+        self.play(FadeIn(patch), FadeIn(patch_lbl), run_time=1.0)
         self.play(FadeIn(q_grp, shift=UP * 0.2), run_time=1.0)
         self.wait(1.5)
 
-        # Three bars growing from common baseline
+        # Three bars growing — tops at bar_top_y so they don't overlap patch
         max_xyz = max(X_g, Y_g, Z_g, 1e-9)
-        bar_scale = 1.8 / max_xyz
+        bar_scale = 1.5 / max_xyz
         bar_w = 0.52
         bar_spacing = 0.72
-        bar_base_y = patch.get_bottom()[1] - 0.35
+        bar_top_y = patch.get_bottom()[1] - 0.5
         bars_data_xyz = [
             ("X", X_g, MUTED_RED, -bar_spacing),
             ("Y", Y_g, MUTED_GREEN, 0.0),
@@ -1459,7 +1462,7 @@ class CIE1931Scene(Scene):
             h = max(val * bar_scale, 0.1)
             b = Rectangle(width=bar_w, height=h,
                            fill_color=col, fill_opacity=0.85, stroke_width=0)
-            b.move_to([patch.get_center()[0] + x_off, bar_base_y + h / 2, 0])
+            b.move_to([patch.get_center()[0] + x_off, bar_top_y - h / 2, 0])
             lbl = Text(label, font_size=18, color=col, weight=BOLD)
             lbl.next_to(b, DOWN, buff=0.1)
             hook_bars.add(b)
@@ -1478,7 +1481,7 @@ class CIE1931Scene(Scene):
         answer_cap.move_to(q_cap.get_center())
         self.play(Transform(q_mark, answer), Transform(q_cap, answer_cap), run_time=1.0)
         self.wait(3.5)
-        self.play(FadeOut(VGroup(patch, q_mark, q_cap, hook_bars, hook_lbls)),
+        self.play(FadeOut(VGroup(patch, patch_lbl, q_mark, q_cap, hook_bars, hook_lbls)),
                   run_time=1.2)
 
         # ── Act 1: Animated matching-experiment ───────────────────────
@@ -1551,8 +1554,12 @@ class CIE1931Scene(Scene):
         check.move_to(exp_panel.get_center() + LEFT * 0.5 + UP * 0.5)
         self.play(FadeIn(check, scale=1.4), run_time=0.6)
 
-        repeat_lbl = Text("Repeat for 380–780 nm  →  r̄ ḡ b̄ curves",
-                          font_size=16, color=TEXT_SEC)
+        # Two-line repeat label
+        repeat_line1 = Text("Repeat for every wavelength 380–780 nm → get matching curves",
+                            font_size=15, color=TEXT_SEC)
+        repeat_line2 = Text("These are called r̄(λ) ḡ(λ) b̄(λ) — the Color Matching Functions (CMFs)",
+                            font_size=15, color=TEXT_SEC)
+        repeat_lbl = VGroup(repeat_line1, repeat_line2).arrange(DOWN, buff=0.12)
         repeat_lbl.next_to(exp_panel, DOWN, buff=0.25)
         self.play(FadeIn(repeat_lbl, shift=UP * 0.1))
         self.wait(2.5)
@@ -1570,6 +1577,20 @@ class CIE1931Scene(Scene):
             axis_config={"color": GRID_COL, "stroke_width": 1.5})
         axes.move_to(DOWN * 0.6)
 
+        # Axis labels for CMF axes
+        cmf_x_lbl = Text("Wavelength  λ (nm)", font_size=15, color=TEXT_SEC)
+        cmf_x_lbl.next_to(axes, DOWN, buff=0.2)
+        cmf_y_lbl = Text("Response", font_size=15, color=TEXT_SEC)
+        cmf_y_lbl.rotate(PI / 2)
+        cmf_y_lbl.next_to(axes, LEFT, buff=0.25)
+
+        # X-tick labels at key wavelengths
+        cmf_ticks = VGroup()
+        for wl_tick in [400, 500, 600, 700]:
+            t = Text(str(wl_tick), font_size=12, color=TEXT_SEC)
+            t.move_to(axes.c2p(wl_tick, -0.08) + DOWN * 0.18)
+            cmf_ticks.add(t)
+
         x_plot = axes.plot(xbar, color=MUTED_RED, stroke_width=3,
                            x_range=[380, 780, 2])
         y_plot = axes.plot(ybar, color=MUTED_GREEN, stroke_width=3,
@@ -1585,6 +1606,7 @@ class CIE1931Scene(Scene):
         zl.move_to(axes.c2p(445, 1.55))
 
         self.play(Create(axes, run_time=1.4))
+        self.play(FadeIn(cmf_x_lbl), FadeIn(cmf_y_lbl), FadeIn(cmf_ticks))
         self.play(Create(x_plot, run_time=1.2), FadeIn(xl))
         self.play(Create(y_plot, run_time=1.2), FadeIn(yl))
         self.play(Create(z_plot, run_time=1.2), FadeIn(zl))
@@ -1611,6 +1633,28 @@ class CIE1931Scene(Scene):
         yd.clear_updaters(); zd.clear_updaters()
         self.play(FadeOut(VGroup(sweep_line, xd, yd, zd)), run_time=0.6)
 
+        # Filled areas under CMF curves — show integration visually
+        x_fill = axes.get_area(x_plot, x_range=[380, 780], color=MUTED_RED, opacity=0.0)
+        y_fill = axes.get_area(y_plot, x_range=[380, 780], color=MUTED_GREEN, opacity=0.0)
+        z_fill = axes.get_area(z_plot, x_range=[380, 780], color=MUTED_BLUE, opacity=0.0)
+        self.add(x_fill, y_fill, z_fill)
+        self.play(x_fill.animate.set_fill(opacity=0.22),
+                  y_fill.animate.set_fill(opacity=0.22),
+                  z_fill.animate.set_fill(opacity=0.22), run_time=1.2)
+
+        # Brief callout before integral formula
+        area_callout_txt = Text("These shaded areas = the X, Y, Z values",
+                                font_size=18, color=ACCENT_YELLOW)
+        area_callout_box = RoundedRectangle(corner_radius=0.10,
+            width=area_callout_txt.width + 0.5, height=area_callout_txt.height + 0.4,
+            fill_color=PANEL, fill_opacity=0.9,
+            stroke_color=ACCENT_YELLOW, stroke_width=1.5)
+        area_callout_box.to_edge(DOWN, buff=0.45)
+        area_callout_txt.move_to(area_callout_box)
+        self.play(FadeIn(area_callout_box), FadeIn(area_callout_txt))
+        self.wait(2.0)
+        self.play(FadeOut(area_callout_box), FadeOut(area_callout_txt))
+
         formula = MathTex(
             r"X = \int S(\lambda)\,\bar{x}(\lambda)\,d\lambda",
             r"\quad Y = \int S(\lambda)\,\bar{y}(\lambda)\,d\lambda",
@@ -1633,16 +1677,31 @@ class CIE1931Scene(Scene):
         rgb_ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(rgb_ch, shift=DOWN * 0.2))
 
+        # Brief intro explaining the problem
+        intro_problem = Text("But the CIE RGB experiment found a problem...",
+                             font_size=22, color=ACCENT_ORANGE)
+        intro_problem.next_to(rgb_ch, DOWN, buff=0.45)
+        self.play(FadeIn(intro_problem, shift=UP * 0.1))
+        self.wait(2.0)
+        self.play(FadeOut(intro_problem))
+
         rgb_axes = Axes(
             x_range=[380, 780, 50], y_range=[-0.3, 1.1, 0.4],
-            x_length=10, y_length=4.2, tips=False,
+            x_length=10, y_length=3.8, tips=False,
             axis_config={"color": GRID_COL, "stroke_width": 1.5})
-        rgb_axes.move_to(DOWN * 0.5)
+        rgb_axes.move_to(DOWN * 0.6)
         rgb_zero = rgb_axes.plot(lambda w: 0, color=GRID_COL,
                                  stroke_width=1.0, x_range=[380, 780])
+
+        # Axis labels for r̄ḡb̄ axes
         rgb_x_lbl = Text("λ (nm)", font_size=15, color=TEXT_SEC)
-        rgb_x_lbl.next_to(rgb_axes, DOWN, buff=0.12)
-        self.play(Create(rgb_axes), Create(rgb_zero), FadeIn(rgb_x_lbl), run_time=1.4)
+        rgb_x_lbl.next_to(rgb_axes, DOWN, buff=0.2)
+        rgb_y_lbl = Text("Response", font_size=15, color=TEXT_SEC)
+        rgb_y_lbl.rotate(PI / 2)
+        rgb_y_lbl.next_to(rgb_axes, LEFT, buff=0.25)
+
+        self.play(Create(rgb_axes), Create(rgb_zero),
+                  FadeIn(rgb_x_lbl), FadeIn(rgb_y_lbl), run_time=1.4)
 
         r_plot = rgb_axes.plot(rbar, color=MUTED_RED, stroke_width=3.5,
                                x_range=[380, 780, 2])
@@ -1662,29 +1721,60 @@ class CIE1931Scene(Scene):
         self.play(Create(g_plot), FadeIn(gl), run_time=1.0)
         self.play(Create(b_plot), FadeIn(bl), run_time=1.0)
 
-        x_range = np.arange(380, 780, 1)
-        negative_range = rbar(x_range)
-        negative_range[negative_range <= 0]
-
         # Highlight negative region of r̄ — animated fill area
         neg_area = rgb_axes.get_area(r_plot, x_range=[455, 532],
                                       color=MUTED_RED, opacity=0.0)
         self.add(neg_area)
         self.play(neg_area.animate.set_fill(opacity=0.28), run_time=1.5)
-        neg_ann = VGroup(
-            Text("Negative!", font_size=14, color=MUTED_RED),
-            Text("(add R to test side)", font_size=14, color=MUTED_RED),
-        ).arrange(DOWN, buff=0.1)
-        neg_ann.move_to(rgb_axes.c2p(510, -0.20))
-        self.play(FadeIn(neg_ann, shift=UP * 0.1))
-        self.wait(3.5)
 
-        # Show transformation arrow → x̄ȳz̄
-        transform_txt = Text(
-            "3×3 linear transform  →  x̄ȳz̄  all positive  →  XYZ primaries are imaginary",
-            font_size=18, color=ACCENT_ORANGE)
+        # Annotation: "r̄ < 0 here"
+        neg_ann_simple = Text("r̄ < 0 here", font_size=15, color=MUTED_RED)
+        neg_ann_simple.move_to(rgb_axes.c2p(495, -0.18))
+        self.play(FadeIn(neg_ann_simple, shift=UP * 0.1))
+
+        # Explanation panel for why r̄ goes negative
+        neg_exp_content = VGroup(
+            Text("Normally:  match = R·red + G·green + B·blue", font_size=13, color=TEXT_PRI),
+            Text("At ~500 nm:  you had to add red to the TEST side", font_size=13, color=ACCENT_ORANGE),
+            Text("test + R·red = G·green + B·blue", font_size=13, color=TEXT_SEC),
+            Text("∴  test = –R·red + G·green + B·blue   (r̄ is negative)", font_size=13, color=MUTED_RED),
+        ).arrange(DOWN, buff=0.15, aligned_edge=LEFT)
+        neg_exp_panel = RoundedRectangle(corner_radius=0.12,
+            width=neg_exp_content.width + 0.5, height=neg_exp_content.height + 0.4,
+            fill_color=PANEL, fill_opacity=0.92,
+            stroke_color=MUTED_RED, stroke_width=1.5)
+        neg_exp_panel.to_edge(DOWN, buff=0.3)
+        neg_exp_content.move_to(neg_exp_panel)
+        self.play(FadeIn(neg_exp_panel), FadeIn(neg_exp_content))
+        self.wait(4.0)
+        self.play(FadeOut(neg_exp_panel), FadeOut(neg_exp_content), FadeOut(neg_ann_simple))
+
+        # XYZ vs RGB explanation panel
+        xyz_vs_rgb_content = VGroup(
+            Text("CIE RGB (r̄ḡb̄): real primaries, but values go negative", font_size=16, color=TEXT_PRI),
+            Text("CIE XYZ (x̄ȳz̄): imaginary primaries, always ≥ 0", font_size=16, color=TEXT_PRI),
+            Text("The CIE applied a 3×3 matrix to rotate r̄ḡb̄ → x̄ȳz̄", font_size=16, color=ACCENT_ORANGE),
+        ).arrange(DOWN, buff=0.14, aligned_edge=LEFT)
+        xyz_vs_rgb_panel = RoundedRectangle(corner_radius=0.12,
+            width=xyz_vs_rgb_content.width + 0.5, height=xyz_vs_rgb_content.height + 0.4,
+            fill_color=PANEL, fill_opacity=0.92,
+            stroke_color=ACCENT_ORANGE, stroke_width=1.5)
+        xyz_vs_rgb_panel.to_edge(DOWN, buff=0.35)
+        xyz_vs_rgb_content.move_to(xyz_vs_rgb_panel)
+        self.play(FadeIn(xyz_vs_rgb_panel), FadeIn(xyz_vs_rgb_content))
+        self.wait(4.0)
+        self.play(FadeOut(xyz_vs_rgb_panel), FadeOut(xyz_vs_rgb_content))
+
+        # Expanded transformation callout — 2 lines
+        transform_line1 = Text(
+            "A 3×3 matrix rotates r̄ḡb̄ → x̄ȳz̄.  XYZ 'primaries' are outside the visible gamut",
+            font_size=16, color=ACCENT_ORANGE)
+        transform_line2 = Text(
+            "— they don't exist as real lights — but that makes the math clean: X, Y, Z ≥ 0 always.",
+            font_size=16, color=TEXT_PRI)
+        transform_txt = VGroup(transform_line1, transform_line2).arrange(DOWN, buff=0.12)
         transform_box = RoundedRectangle(corner_radius=0.10,
-            width=transform_txt.width + 0.6, height=transform_txt.height + 0.4,
+            width=transform_txt.width + 0.5, height=transform_txt.height + 0.4,
             fill_color=PANEL, fill_opacity=0.9,
             stroke_color=ACCENT_ORANGE, stroke_width=1.5)
         transform_box.to_edge(DOWN, buff=0.45)
@@ -1715,16 +1805,22 @@ class SpectralRenderingScene(Scene):
                                  stroke_width=0)
         rgb_surface.move_to(LEFT * 3.5 + UP * 0.7)
 
+        # Normalize bars to max height 2.0
+        hook_bar_raw = [2.0, 1.1, 0.28]
+        hook_bar_max = max(hook_bar_raw)
+        hook_bar_scale = 2.0 / hook_bar_max
         hook_bar_w = 0.32
-        hook_bar_data = [(MUTED_RED, 2.0), (MUTED_GREEN, 1.1), (MUTED_BLUE, 0.28)]
+        hook_bar_data = [(MUTED_RED, hook_bar_raw[0] * hook_bar_scale),
+                         (MUTED_GREEN, hook_bar_raw[1] * hook_bar_scale),
+                         (MUTED_BLUE, hook_bar_raw[2] * hook_bar_scale)]
         hook_rgb_bars = VGroup()
         hook_rgb_lbls = VGroup()
+        bar_top_ref = rgb_surface.get_bottom()[1] - 0.28
         for i, (col, bh) in enumerate(hook_bar_data):
             xb = rgb_surface.get_center()[0] + (i - 1) * 0.6
-            yb = rgb_surface.get_bottom()[1] - 0.28 - bh / 2
             b = Rectangle(width=hook_bar_w, height=bh,
                            fill_color=col, fill_opacity=0.85, stroke_width=0)
-            b.move_to([xb, yb, 0])
+            b.move_to([xb, bar_top_ref - bh / 2, 0])
             hook_rgb_bars.add(b)
         for col, label in [(MUTED_RED, "R"), (MUTED_GREEN, "G"), (MUTED_BLUE, "B")]:
             t = Text(label, font_size=12, color=col)
@@ -1744,6 +1840,13 @@ class SpectralRenderingScene(Scene):
             axis_config={"color": GRID_COL, "stroke_width": 1.0,
                          "include_ticks": False, "include_tip": False})
         hook_axes.move_to(RIGHT * 3.5 + UP * 0.7)
+
+        # Axis labels for hook axes
+        hook_x_lbl = Text("λ (nm)", font_size=12, color=TEXT_SEC)
+        hook_x_lbl.next_to(hook_axes, DOWN, buff=0.12)
+        hook_y_lbl = Text("Intensity", font_size=12, color=TEXT_SEC)
+        hook_y_lbl.rotate(PI / 2)
+        hook_y_lbl.next_to(hook_axes, LEFT, buff=0.15)
 
         def _orange_refl(w):
             return 0.9 * np.exp(-0.5 * ((w - 600) / 55) ** 2)
@@ -1766,9 +1869,13 @@ class SpectralRenderingScene(Scene):
                                  stroke_width=1.5, stroke_color=TEXT_SEC)
         spec_swatch.next_to(spec_xyz_lbl, RIGHT, buff=0.25)
 
-        hook_caption = Text("RGB: shortcut  ·  Spectral: physics", font_size=18,
-                             color=ACCENT_TEAL)
-        hook_caption.move_to(DOWN * 2.4)
+        # Two-line hook caption
+        hook_cap_line1 = Text("RGB renderer: stores 3 numbers per pixel — fast but approximate",
+                               font_size=15, color=TEXT_SEC)
+        hook_cap_line2 = Text("Spectral renderer: stores a full curve — accurate but slower",
+                               font_size=15, color=ACCENT_TEAL)
+        hook_caption = VGroup(hook_cap_line1, hook_cap_line2).arrange(DOWN, buff=0.12)
+        hook_caption.move_to(DOWN * 2.8)
 
         # Vertical divider
         v_div = DashedLine(UP * 2.5, DOWN * 2.0, color=GRID_COL, stroke_width=1.5,
@@ -1782,7 +1889,7 @@ class SpectralRenderingScene(Scene):
                   FadeIn(hook_rgb_lbls), run_time=0.9)
         self.play(FadeIn(rgb_done_lbl), run_time=0.5)
 
-        self.play(Create(hook_axes), run_time=0.8)
+        self.play(Create(hook_axes), FadeIn(hook_x_lbl), FadeIn(hook_y_lbl), run_time=0.8)
         self.play(Create(hook_refl_plot), run_time=1.8)
         self.play(hook_refl_area.animate.set_fill(opacity=0.28), run_time=1.0)
         self.play(FadeIn(spec_xyz_lbl, lag_ratio=0.4), run_time=1.0)
@@ -1793,7 +1900,7 @@ class SpectralRenderingScene(Scene):
 
         # ── Act 1: RGB vs spectral rendering pipeline ─────────────────
 
-        # RGB pipeline — VGroup labels (no \n in Text)
+        # RGB pipeline — self-contained VGroup
         rgb_block_data = [
             ("Light", "(RGB)",       ACCENT_YELLOW),
             ("×  Material", "(RGB albedo)", MUTED_GREEN),
@@ -1813,16 +1920,16 @@ class SpectralRenderingScene(Scene):
         rgb_row.arrange(RIGHT, buff=0.25)
 
         rgb_label = Text("RGB Pipeline:", font_size=17, color=TEXT_SEC)
-        VGroup(rgb_label, rgb_row).arrange(RIGHT, buff=0.3)
-        VGroup(rgb_label, rgb_row).next_to(ch, DOWN, buff=0.55)
+        rgb_section = VGroup(rgb_label, rgb_row).arrange(DOWN, buff=0.18)
+        rgb_section.next_to(ch, DOWN, buff=0.5)
         self.play(FadeIn(rgb_label), FadeIn(rgb_row, lag_ratio=0.3), run_time=1.8)
 
         rgb_pro = Text("✗  Can't model dispersion, fluorescence, thin-film",
                        font_size=16, color=MUTED_RED)
-        rgb_pro.next_to(rgb_row, DOWN, buff=0.22)
+        rgb_pro.next_to(rgb_section, DOWN, buff=0.2)
         self.play(FadeIn(rgb_pro))
 
-        # Spectral pipeline — VGroup labels (no \n in Text)
+        # Spectral pipeline — self-contained VGroup
         spec_block_data = [
             ("Light SPD", "(λ)",           ACCENT_YELLOW),
             ("× Reflectance", "SPD(λ)",    ACCENT_TEAL),
@@ -1843,13 +1950,13 @@ class SpectralRenderingScene(Scene):
         spec_row.arrange(RIGHT, buff=0.2)
 
         spec_label = Text("Spectral Pipeline:", font_size=17, color=TEXT_SEC)
-        VGroup(spec_label, spec_row).arrange(RIGHT, buff=0.3)
-        VGroup(spec_label, spec_row).next_to(rgb_pro, DOWN, buff=0.38)
+        spec_section = VGroup(spec_label, spec_row).arrange(DOWN, buff=0.18)
+        spec_section.next_to(rgb_pro, DOWN, buff=0.32)
         self.play(FadeIn(spec_label), FadeIn(spec_row, lag_ratio=0.3), run_time=1.8)
 
         spec_pro = Text("✓  Correct dispersion · fluorescence · thin-film interference",
                         font_size=16, color=ACCENT_GREEN)
-        spec_pro.next_to(spec_row, DOWN, buff=0.22)
+        spec_pro.next_to(spec_section, DOWN, buff=0.2)
         self.play(FadeIn(spec_pro))
         self.wait(3.5)
 
@@ -1877,9 +1984,14 @@ class SpectralRenderingScene(Scene):
             x_length=9, y_length=3.2, tips=False,
             axis_config={"color": GRID_COL, "stroke_width": 1.5})
         refl_axes.move_to(DOWN * 0.4)
+
+        # Axis labels for refl_axes
         rx_lbl = Text("λ (nm)", font_size=14, color=TEXT_SEC)
-        rx_lbl.next_to(refl_axes, DOWN, buff=0.10)
-        self.play(Create(refl_axes), FadeIn(rx_lbl), run_time=1.2)
+        rx_lbl.next_to(refl_axes, DOWN, buff=0.18)
+        ry_lbl = Text("Value", font_size=14, color=TEXT_SEC)
+        ry_lbl.rotate(PI / 2)
+        ry_lbl.next_to(refl_axes, LEFT, buff=0.22)
+        self.play(Create(refl_axes), FadeIn(rx_lbl), FadeIn(ry_lbl), run_time=1.2)
 
         d65_plot = refl_axes.plot_line_graph(
             wls, d65_vals / d65_max, line_color=ACCENT_YELLOW, stroke_width=2.5,
@@ -1894,14 +2006,16 @@ class SpectralRenderingScene(Scene):
 
         d65_lbl = Text("Illuminant SPD", font_size=14, color=ACCENT_YELLOW)
         d65_lbl.move_to(refl_axes.c2p(680, 1.1))
-        refl_lbl = Text("Reflectance SPD", font_size=14, color=ACCENT_GREEN)
-        refl_lbl.move_to(refl_axes.c2p(600, 0.9))
-        prod_lbl = Text("× Product → integrate with CMFs", font_size=14, color=ACCENT_TEAL)
-        prod_lbl.move_to(refl_axes.c2p(500, 0.65))
+        refl_lbl = Text("Reflectance curve", font_size=14, color=ACCENT_GREEN)
+        refl_lbl.move_to(refl_axes.c2p(600, 0.92))
+        prod_lbl = Text("Product (× illuminant)", font_size=13, color=ACCENT_TEAL)
+        prod_lbl.move_to(refl_axes.c2p(460, 0.55))
+        prod_lbl2 = Text("→ integrate with CMFs", font_size=13, color=ACCENT_TEAL)
+        prod_lbl2.next_to(prod_lbl, DOWN, buff=0.08)
 
         self.play(Create(d65_plot), FadeIn(d65_lbl), run_time=1.8)
         self.play(Create(refl_plot), FadeIn(refl_lbl), run_time=1.8)
-        self.play(Create(prod_plot), FadeIn(prod_lbl), run_time=1.8)
+        self.play(Create(prod_plot), FadeIn(prod_lbl), FadeIn(prod_lbl2), run_time=1.8)
 
         # Animated fill area under product curve
         prod_area = refl_axes.get_area(prod_plot, x_range=[380, 780],
@@ -1917,15 +2031,20 @@ class SpectralRenderingScene(Scene):
                   run_time=2.5, rate_func=linear)
         self.play(FadeOut(sweep), run_time=0.5)
 
-        # Computed result swatch
+        # Computed result swatch — placed logically after axes, connected by arrow
         _Xg2, _Yg2, _Zg2 = spd_to_xyz(green_reflect, illuminant_d65_spd)
         result_col = rgb_to_hex(np.clip(xyz_to_srgb(_Xg2, _Yg2, _Zg2), 0, 1))
         result_swatch = Rectangle(width=1.5, height=1.0,
                                    fill_color=result_col, fill_opacity=1.0,
                                    stroke_width=1.5, stroke_color=TEXT_SEC)
-        result_swatch.move_to(RIGHT * 5.5 + UP * 0.8)
+        result_swatch.move_to(refl_axes.get_right() + RIGHT * 1.5 + UP * 0.3)
         result_swatch_lbl = Text("Result", font_size=13, color=TEXT_SEC)
         result_swatch_lbl.next_to(result_swatch, DOWN, buff=0.1)
+        result_arrow = Arrow(
+            refl_axes.get_right() + RIGHT * 0.1,
+            result_swatch.get_left() + LEFT * 0.1,
+            color=TEXT_SEC, stroke_width=2.0, buff=0.0, max_tip_length_to_length_ratio=0.2)
+        self.play(GrowArrow(result_arrow), run_time=0.6)
         self.play(FadeIn(result_swatch, scale=1.3), FadeIn(result_swatch_lbl))
 
         spec_txt = VGroup(
@@ -1975,8 +2094,12 @@ class MetamerismScene(Scene):
         light_cap = Text("Under daylight", font_size=15, color=TEXT_SEC)
         light_cap.next_to(hook_swatch_grp, DOWN, buff=0.28)
 
+        # Label below "=" sign showing XYZ relationship
+        same_xyz_lbl = Text("Same XYZ values", font_size=13, color=ACCENT_GREEN)
+        same_xyz_lbl.next_to(eq_hook, DOWN, buff=0.28)
+
         self.play(FadeIn(hook_swatch_grp), FadeIn(lbl_A), FadeIn(lbl_B),
-                  FadeIn(light_cap), run_time=1.2)
+                  FadeIn(light_cap), FadeIn(same_xyz_lbl), run_time=1.2)
         self.wait(2.0)
 
         # Warm overlay simulating tungsten light change
@@ -1987,17 +2110,39 @@ class MetamerismScene(Scene):
         neq_hook.move_to(eq_hook.get_center())
         tungsten_cap = Text("Under tungsten lamp", font_size=15, color=ACCENT_ORANGE)
         tungsten_cap.move_to(light_cap.get_center())
+        diff_xyz_lbl = Text("Different XYZ values", font_size=13, color=MUTED_RED)
+        diff_xyz_lbl.move_to(same_xyz_lbl.get_center())
         self.play(
             warm_overlay.animate.set_fill(opacity=0.16),
             sw_A.animate.set_fill(color="#8a6a3c"),
             sw_B.animate.set_fill(color="#4d6b55"),
             Transform(eq_hook, neq_hook),
             Transform(light_cap, tungsten_cap),
+            Transform(same_xyz_lbl, diff_xyz_lbl),
             run_time=1.8)
         self.wait(3.0)
         self.play(*[FadeOut(m) for m in self.mobjects if m is not ch], run_time=1.2)
 
-        # ── Act 1: Metameric pair under D65 ──────────────────────────
+        # ── Act 1: Intro panel + Metameric pair under D65 ─────────────
+        # Brief intro before showing SPD axes
+        intro_content = VGroup(
+            Text("Metamerism: two different light spectra that look the same color",
+                 font_size=16, color=ACCENT_PINK),
+            Text("Because human eyes only measure 3 numbers (X, Y, Z) —",
+                 font_size=15, color=TEXT_SEC),
+            Text("any two spectra with equal XYZ look identical!",
+                 font_size=15, color=TEXT_SEC),
+        ).arrange(DOWN, buff=0.14, aligned_edge=LEFT)
+        intro_panel = RoundedRectangle(corner_radius=0.12,
+            width=intro_content.width + 0.5, height=intro_content.height + 0.4,
+            fill_color=PANEL, fill_opacity=0.9,
+            stroke_color=ACCENT_PINK, stroke_width=1.5)
+        intro_panel.move_to(ORIGIN)
+        intro_content.move_to(intro_panel)
+        self.play(FadeIn(intro_panel), FadeIn(intro_content))
+        self.wait(3.5)
+        self.play(FadeOut(intro_panel), FadeOut(intro_content))
+
         wls = np.linspace(380, 780, 200)
 
         spd_axes = Axes(
@@ -2005,8 +2150,13 @@ class MetamerismScene(Scene):
             x_length=9, y_length=2.6, tips=False,
             axis_config={"color": GRID_COL, "stroke_width": 1.5})
         spd_axes.move_to(UP * 0.9)
+
+        # Axis labels for spd_axes
         spd_x_lbl = Text("λ (nm)", font_size=14, color=TEXT_SEC)
-        spd_x_lbl.next_to(spd_axes, DOWN, buff=0.10)
+        spd_x_lbl.next_to(spd_axes, DOWN, buff=0.15)
+        spd_y_lbl = Text("Relative Power", font_size=14, color=TEXT_SEC)
+        spd_y_lbl.rotate(PI / 2)
+        spd_y_lbl.next_to(spd_axes, LEFT, buff=0.22)
 
         # SPD 1: simulated D65-like daylight
         d65_vals = np.array([float(illuminant_d65_spd(w)) for w in wls])
@@ -2030,7 +2180,7 @@ class MetamerismScene(Scene):
         fl_lbl = Text("Fluorescent SPD", font_size=16, color=ACCENT_PINK)
         fl_lbl.move_to(spd_axes.c2p(430, 1.15))
 
-        self.play(Create(spd_axes), FadeIn(spd_x_lbl), run_time=1.4)
+        self.play(Create(spd_axes), FadeIn(spd_x_lbl), FadeIn(spd_y_lbl), run_time=1.4)
         self.play(Create(d65_plot), FadeIn(d65_lbl), run_time=1.0)
         self.play(Create(fl_plot), FadeIn(fl_lbl), run_time=1.0)
 
@@ -2048,9 +2198,16 @@ class MetamerismScene(Scene):
         swatch_grp = VGroup(sw1, eq_sign, sw2).arrange(RIGHT, buff=0.45)
         swatch_grp.next_to(spd_axes, DOWN, buff=0.55)
 
+        # Sub-labels below each swatch
+        sw1_sublbl = Text("Daylight SPD", font_size=13, color=ACCENT_BLUE)
+        sw1_sublbl.next_to(sw1, DOWN, buff=0.12)
+        sw2_sublbl = Text("Fluorescent SPD", font_size=13, color=ACCENT_PINK)
+        sw2_sublbl.next_to(sw2, DOWN, buff=0.12)
+
         d65_tag = Text("Under D65  (both look the same)", font_size=14, color=ACCENT_GREEN)
         d65_tag.next_to(swatch_grp, UP, buff=0.18)
-        self.play(FadeIn(swatch_grp), FadeIn(d65_tag))
+        self.play(FadeIn(swatch_grp), FadeIn(d65_tag),
+                  FadeIn(sw1_sublbl), FadeIn(sw2_sublbl))
         self.wait(3.5)
 
         # ── Act 2: Switch to Illuminant A → colors diverge ───────────
@@ -2085,18 +2242,21 @@ class MetamerismScene(Scene):
         self.wait(3.5)
 
         # ── Act 3: Engineering callout ────────────────────────────────
-        meta_txt = VGroup(
-            Text("Color sensors see metameric matches.", font_size=18, color=ACCENT_PINK),
-            Text("This is why white balance and ICC profiles exist.",
-                 font_size=17, color=TEXT_PRI),
-        ).arrange(DOWN, buff=0.12)
+        meta_content = VGroup(
+            Text("Metamerism: two different spectra → same XYZ → same apparent color",
+                 font_size=16, color=ACCENT_PINK),
+            Text("BUT: swap the light source and XYZ changes differently for each → colors diverge",
+                 font_size=15, color=TEXT_PRI),
+            Text("This is why: camera white balance, printer ICC profiles, paint matching labs use multiple illuminants",
+                 font_size=14, color=TEXT_SEC),
+        ).arrange(DOWN, buff=0.14, aligned_edge=LEFT)
         meta_box = RoundedRectangle(corner_radius=0.12,
-            width=meta_txt.width + 0.6, height=meta_txt.height + 0.4,
+            width=meta_content.width + 0.5, height=meta_content.height + 0.4,
             fill_color=PANEL, fill_opacity=0.9,
             stroke_color=ACCENT_PINK, stroke_width=1.5)
         meta_box.to_edge(DOWN, buff=0.45)
-        meta_txt.move_to(meta_box)
-        self.play(FadeIn(meta_box), FadeIn(meta_txt))
+        meta_content.move_to(meta_box)
+        self.play(FadeIn(meta_box), FadeIn(meta_content))
         self.wait(7)
         self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
