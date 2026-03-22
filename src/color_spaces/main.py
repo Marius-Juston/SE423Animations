@@ -808,7 +808,7 @@ class ElectromagneticSpectrumScene(Scene):
             Text("Light is electromagnetic radiation — energy travelling as waves.",
                  font_size=22, color=TEXT_PRI),
             Text("The wavelength of the wave determines what your eye perceives as colour.",
-                 font_size=22, color=TEXT_PRI),
+                 font_size=20, color=TEXT_PRI),
         ).arrange(DOWN, buff=0.35)
         hook.move_to(ORIGIN)
         self.play(FadeIn(hook, lag_ratio=0.3), run_time=1.5)
@@ -978,7 +978,6 @@ class GammaTransferScene(Scene):
                  font_size=21, color=TEXT_PRI),
             Text("does that look like 50% brightness on screen?",
                  font_size=21, color=TEXT_PRI),
-            Text("", font_size=10),
             Text("Answer: No — it looks like only ~21%.",
                  font_size=21, color=ACCENT_ORANGE),
             Text("Understanding why requires a short trip into CRT history.",
@@ -996,7 +995,7 @@ class GammaTransferScene(Scene):
                        font_size=24, color=TEXT_PRI)
         crt_lbl.next_to(ch, DOWN, buff=0.5)
         crt_lbl2 = Text("doubling the voltage produced  4× the brightness  (a power-law response)",
-                        font_size=21, color=TEXT_SEC)
+                        font_size=20, color=TEXT_SEC)
         crt_lbl2.next_to(crt_lbl, DOWN, buff=0.25)
         self.play(FadeIn(crt_lbl))
         self.play(FadeIn(crt_lbl2))
@@ -1018,7 +1017,7 @@ class GammaTransferScene(Scene):
         ideal_plot = gamma_axes.plot(
             lambda v: v, color=GRID_COL, stroke_width=1.5,
             x_range=[0, 1, 0.01])
-        crt_plot_lbl = Text("CRT: V^2.2", font_size=16, color=MUTED_RED)
+        crt_plot_lbl = MathTex("CRT: V^2.2", font_size=16, color=MUTED_RED)
         crt_plot_lbl.move_to(gamma_axes.c2p(0.75, 0.35))
         ideal_lbl = Text("ideal 1:1", font_size=14, color=GRID_COL)
         ideal_lbl.move_to(gamma_axes.c2p(0.7, 0.75))
@@ -1423,39 +1422,142 @@ class CIE1931Scene(Scene):
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
 
-        # Context
-        ctx = Text("International Commission on Illumination — "
-                   "first mathematical model of human color vision",
-                   font_size=18, color=TEXT_SEC)
-        ctx.next_to(ch, DOWN, buff=0.35)
-        self.play(FadeIn(ctx))
+        # ── Act 0: Animated XYZ hook — "what does colour math do?" ──────
+        def _green_spd(w):
+            return 0.8 * np.exp(-0.5 * ((w - 540) / 40) ** 2)
+        X_g, Y_g, Z_g = spd_to_xyz(_green_spd, illuminant_d65_spd)
+        green_srgb = np.clip(xyz_to_srgb(X_g, Y_g, Z_g), 0, 1)
 
-        # Experiment diagram
-        exp = RoundedRectangle(corner_radius=0.15, width=10, height=2.0,
-                               fill_color=PANEL, fill_opacity=0.9,
-                               stroke_color=ACCENT_PURPLE, stroke_width=1.5)
-        exp.move_to(UP * 0.3)
-        self.play(FadeIn(exp))
+        patch = Rectangle(width=2.8, height=1.8,
+                           fill_color=rgb_to_hex(green_srgb), fill_opacity=1.0,
+                           stroke_width=0)
+        patch.move_to(LEFT * 2.5 + UP * 0.5)
 
-        obs = Text("👁", font_size=36).move_to(exp.get_left() + RIGHT * 1.0)
-        test = Rectangle(width=1.5, height=1.2, fill_color="#553311",
-                         fill_opacity=0.5, stroke_color=TEXT_SEC, stroke_width=1)
-        test.move_to(exp.get_center() + LEFT * 1.5)
-        test_lbl = Text("Test λ", font_size=14, color=TEXT_PRI).move_to(test)
-        match = Rectangle(width=1.5, height=1.2, fill_color="#334455",
-                          fill_opacity=0.5, stroke_color=TEXT_SEC, stroke_width=1)
-        match.move_to(exp.get_center() + RIGHT * 0.2)
-        match_lbl = Text("r·R+g·G+b·B", font_size=12, color=TEXT_PRI).move_to(match)
-        result_txt = Text("Record r,g,b\nfor every λ", font_size=15, color=ACCENT_ORANGE)
-        result_txt.move_to(exp.get_right() + LEFT * 1.3)
+        q_mark = Text("?", font_size=64, color=TEXT_PRI, weight=BOLD)
+        q_cap = Text("What numbers describe this?", font_size=18, color=TEXT_SEC)
+        q_grp = VGroup(q_mark, q_cap).arrange(DOWN, buff=0.22)
+        q_grp.move_to(RIGHT * 2.8 + UP * 0.5)
 
-        self.play(FadeIn(obs), FadeIn(VGroup(test, test_lbl)),
-                  FadeIn(VGroup(match, match_lbl)), FadeIn(result_txt))
+        self.play(FadeIn(patch), run_time=1.0)
+        self.play(FadeIn(q_grp, shift=UP * 0.2), run_time=1.0)
+        self.wait(1.5)
+
+        # Three bars growing from common baseline
+        max_xyz = max(X_g, Y_g, Z_g, 1e-9)
+        bar_scale = 1.8 / max_xyz
+        bar_w = 0.52
+        bar_spacing = 0.72
+        bar_base_y = patch.get_bottom()[1] - 0.35
+        bars_data_xyz = [
+            ("X", X_g, MUTED_RED, -bar_spacing),
+            ("Y", Y_g, MUTED_GREEN, 0.0),
+            ("Z", Z_g, MUTED_BLUE, bar_spacing),
+        ]
+        hook_bars = VGroup()
+        hook_lbls = VGroup()
+        for (label, val, col, x_off) in bars_data_xyz:
+            h = max(val * bar_scale, 0.1)
+            b = Rectangle(width=bar_w, height=h,
+                           fill_color=col, fill_opacity=0.85, stroke_width=0)
+            b.move_to([patch.get_center()[0] + x_off, bar_base_y + h / 2, 0])
+            lbl = Text(label, font_size=18, color=col, weight=BOLD)
+            lbl.next_to(b, DOWN, buff=0.1)
+            hook_bars.add(b)
+            hook_lbls.add(lbl)
+
+        self.play(
+            GrowFromEdge(hook_bars[0], DOWN),
+            GrowFromEdge(hook_bars[1], DOWN),
+            GrowFromEdge(hook_bars[2], DOWN),
+            FadeIn(hook_lbls), run_time=1.5)
+
+        answer = Text("X, Y, Z", font_size=48, color=ACCENT_PURPLE, weight=BOLD)
+        answer.move_to(q_mark.get_center())
+        answer_cap = Text("CIE 1931 — computed from any light spectrum",
+                          font_size=17, color=TEXT_SEC)
+        answer_cap.move_to(q_cap.get_center())
+        self.play(Transform(q_mark, answer), Transform(q_cap, answer_cap), run_time=1.0)
         self.wait(3.5)
+        self.play(FadeOut(VGroup(patch, q_mark, q_cap, hook_bars, hook_lbls)),
+                  run_time=1.2)
 
-        # Transition to CMFs
-        self.play(FadeOut(VGroup(exp, obs, test, test_lbl, match,
-                                 match_lbl, result_txt, ctx)), run_time=1.2)
+        # ── Act 1: Animated matching-experiment ───────────────────────
+        exp_panel = RoundedRectangle(corner_radius=0.15, width=11.0, height=2.2,
+                                     fill_color=PANEL, fill_opacity=0.9,
+                                     stroke_color=ACCENT_PURPLE, stroke_width=1.5)
+        exp_panel.move_to(UP * 0.5)
+
+        # Left half: test light (540 nm green)
+        test_rect = Rectangle(width=3.6, height=1.5,
+                               fill_color=rgb_to_hex(wavelength_to_rgb(540)),
+                               fill_opacity=1.0, stroke_width=0)
+        test_rect.move_to(exp_panel.get_left() + RIGHT * 2.1)
+        test_lbl2 = Text("Test  λ = 540 nm", font_size=13, color=TEXT_PRI)
+        test_lbl2.next_to(test_rect, UP, buff=0.1)
+
+        # Dividing wall
+        div_wall = Line(
+            exp_panel.get_top() + DOWN * 0.15 + LEFT * 0.5,
+            exp_panel.get_bottom() + UP * 0.15 + LEFT * 0.5,
+            color=TEXT_SEC, stroke_width=1.5)
+
+        # Observer (head + body)
+        obs_head = Circle(radius=0.22, fill_color=TEXT_PRI, fill_opacity=0.85, stroke_width=0)
+        obs_body = Line(DOWN * 0.0, DOWN * 0.55, stroke_width=2.5, color=TEXT_PRI)
+        obs_body.next_to(obs_head, DOWN, buff=0.0)
+        obs = VGroup(obs_head, obs_body)
+        obs.move_to(exp_panel.get_center() + LEFT * 0.5 + DOWN * 0.1)
+
+        # Right half: match light — starts white
+        match_rect = Rectangle(width=3.6, height=1.5,
+                                fill_color="#ffffff", fill_opacity=1.0, stroke_width=0)
+        match_rect.move_to(exp_panel.get_right() + LEFT * 2.1)
+
+        # R, G, B slider rows
+        slider_track_w = 2.0
+        slider_x0 = match_rect.get_left()[0] + 0.3
+        slider_rows_y = match_rect.get_top()[1] - 0.2
+        sliders = VGroup()
+        slider_data = [
+            ("R", MUTED_RED,    0.35, 0.30),
+            ("G", MUTED_GREEN,  0.35, 0.75),
+            ("B", MUTED_BLUE,   0.35, 0.28),
+        ]
+        knob_dots = []
+        for i, (s_lbl, s_col, s_start, s_end) in enumerate(slider_data):
+            track_y = slider_rows_y - i * 0.5
+            track = Line([slider_x0, track_y, 0],
+                         [slider_x0 + slider_track_w, track_y, 0],
+                         color=s_col, stroke_width=2.0, stroke_opacity=0.45)
+            dot = Dot([slider_x0 + s_start * slider_track_w, track_y, 0],
+                      radius=0.09, color=s_col)
+            lbl_s = Text(s_lbl, font_size=11, color=s_col)
+            lbl_s.next_to(track, LEFT, buff=0.08)
+            sliders.add(VGroup(track, dot, lbl_s))
+            knob_dots.append((dot, slider_x0 + s_end * slider_track_w, track_y))
+
+        self.play(Create(exp_panel), run_time=1.0)
+        self.play(FadeIn(test_rect), FadeIn(test_lbl2), FadeIn(div_wall), FadeIn(obs),
+                  run_time=0.8)
+        self.play(FadeIn(match_rect), FadeIn(sliders), run_time=0.7)
+
+        # Animate sliders moving + match rect filling
+        self.play(
+            *[dot.animate.move_to([ex, ey, 0]) for (dot, ex, ey) in knob_dots],
+            match_rect.animate.set_fill(color=rgb_to_hex(wavelength_to_rgb(540))),
+            run_time=1.8)
+
+        check = Text("✓", font_size=36, color=ACCENT_GREEN)
+        check.move_to(exp_panel.get_center() + LEFT * 0.5 + UP * 0.5)
+        self.play(FadeIn(check, scale=1.4), run_time=0.6)
+
+        repeat_lbl = Text("Repeat for 380–780 nm  →  r̄ ḡ b̄ curves",
+                          font_size=16, color=TEXT_SEC)
+        repeat_lbl.next_to(exp_panel, DOWN, buff=0.25)
+        self.play(FadeIn(repeat_lbl, shift=UP * 0.1))
+        self.wait(2.5)
+
+        self.play(*[FadeOut(m) for m in self.mobjects if m is not ch], run_time=1.2)
 
         cmf_title = Text("Color Matching Functions  x̄(λ), ȳ(λ), z̄(λ)", font_size=24,
                          color=TEXT_PRI)
@@ -1487,13 +1589,40 @@ class CIE1931Scene(Scene):
         self.play(Create(y_plot, run_time=1.2), FadeIn(yl))
         self.play(Create(z_plot, run_time=1.2), FadeIn(zl))
 
+        # Sweep animation: dashed line + tracking dots move across CMF curves
+        wl_tracker = ValueTracker(380)
+        sweep_line = always_redraw(lambda: DashedLine(
+            axes.c2p(wl_tracker.get_value(), -0.05),
+            axes.c2p(wl_tracker.get_value(), 1.82),
+            color=ACCENT_YELLOW, stroke_width=2.0, dash_length=0.10))
+        xd = always_redraw(lambda: Dot(
+            axes.c2p(wl_tracker.get_value(), xbar(wl_tracker.get_value())),
+            radius=0.07, color=MUTED_RED))
+        yd = always_redraw(lambda: Dot(
+            axes.c2p(wl_tracker.get_value(), ybar(wl_tracker.get_value())),
+            radius=0.07, color=MUTED_GREEN))
+        zd = always_redraw(lambda: Dot(
+            axes.c2p(wl_tracker.get_value(), zbar(wl_tracker.get_value())),
+            radius=0.07, color=MUTED_BLUE))
+
+        self.add(sweep_line, xd, yd, zd)
+        self.play(wl_tracker.animate.set_value(780), run_time=4.0, rate_func=linear)
+        sweep_line.clear_updaters(); xd.clear_updaters()
+        yd.clear_updaters(); zd.clear_updaters()
+        self.play(FadeOut(VGroup(sweep_line, xd, yd, zd)), run_time=0.6)
+
         formula = MathTex(
             r"X = \int S(\lambda)\,\bar{x}(\lambda)\,d\lambda",
             r"\quad Y = \int S(\lambda)\,\bar{y}(\lambda)\,d\lambda",
             r"\quad Z = \int S(\lambda)\,\bar{z}(\lambda)\,d\lambda",
             font_size=22, color=TEXT_PRI)
-        formula.to_edge(DOWN, buff=0.3)
-        self.play(Write(formula, run_time=1.5))
+        formula_box = RoundedRectangle(corner_radius=0.12,
+            width=formula.width + 0.6, height=formula.height + 0.4,
+            fill_color=PANEL, fill_opacity=0.9,
+            stroke_color=ACCENT_PURPLE, stroke_width=1.5)
+        formula_box.to_edge(DOWN, buff=0.45)
+        formula.move_to(formula_box)
+        self.play(FadeIn(formula_box), Write(formula, run_time=1.5))
         self.wait(4)
 
         # ── Act 2: r̄ḡb̄ negative lobes → why XYZ was needed ──────────
@@ -1533,26 +1662,32 @@ class CIE1931Scene(Scene):
         self.play(Create(g_plot), FadeIn(gl), run_time=1.0)
         self.play(Create(b_plot), FadeIn(bl), run_time=1.0)
 
-        # Highlight the negative region of r̄
-        neg_rect = Rectangle(
-            width=abs(rgb_axes.c2p(540, 0)[0] - rgb_axes.c2p(480, 0)[0]),
-            height=abs(rgb_axes.c2p(0, 0)[1] - rgb_axes.c2p(0, -0.28)[1]),
-            fill_color=MUTED_RED, fill_opacity=0.15, stroke_width=0)
-        neg_rect.move_to(rgb_axes.c2p(510, -0.14))
-        neg_ann = Text("Negative!\n(add R to test side)", font_size=14,
-                       color=MUTED_RED)
-        neg_ann.next_to(neg_rect, DOWN, buff=0.05)
-        self.play(FadeIn(neg_rect), FadeIn(neg_ann))
+        x_range = np.arange(380, 780, 1)
+        negative_range = rbar(x_range)
+        negative_range[negative_range <= 0]
+
+        # Highlight negative region of r̄ — animated fill area
+        neg_area = rgb_axes.get_area(r_plot, x_range=[455, 532],
+                                      color=MUTED_RED, opacity=0.0)
+        self.add(neg_area)
+        self.play(neg_area.animate.set_fill(opacity=0.28), run_time=1.5)
+        neg_ann = VGroup(
+            Text("Negative!", font_size=14, color=MUTED_RED),
+            Text("(add R to test side)", font_size=14, color=MUTED_RED),
+        ).arrange(DOWN, buff=0.1)
+        neg_ann.move_to(rgb_axes.c2p(510, -0.20))
+        self.play(FadeIn(neg_ann, shift=UP * 0.1))
         self.wait(3.5)
 
         # Show transformation arrow → x̄ȳz̄
-        transform_box = RoundedRectangle(corner_radius=0.10, width=10.5, height=1.0,
-                                         fill_color=PANEL, fill_opacity=0.9,
-                                         stroke_color=ACCENT_ORANGE, stroke_width=1.5)
-        transform_box.to_edge(DOWN, buff=0.2)
         transform_txt = Text(
-            "3×3 linear transform  →  x̄ȳz̄  (all positive)  →  XYZ primaries are imaginary",
+            "3×3 linear transform  →  x̄ȳz̄  all positive  →  XYZ primaries are imaginary",
             font_size=18, color=ACCENT_ORANGE)
+        transform_box = RoundedRectangle(corner_radius=0.10,
+            width=transform_txt.width + 0.6, height=transform_txt.height + 0.4,
+            fill_color=PANEL, fill_opacity=0.9,
+            stroke_color=ACCENT_ORANGE, stroke_width=1.5)
+        transform_box.to_edge(DOWN, buff=0.45)
         transform_txt.move_to(transform_box)
         self.play(FadeIn(transform_box), FadeIn(transform_txt))
         self.wait(6)
@@ -1571,62 +1706,150 @@ class SpectralRenderingScene(Scene):
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
 
-        intro = Text(
-            "Modern rendering engines work at the wavelength level before converting to XYZ",
-            font_size=19, color=TEXT_SEC)
-        intro.next_to(ch, DOWN, buff=0.3)
-        self.play(FadeIn(intro))
+        # ── Act 0: Animated RGB-vs-spectral visual hook ───────────────
+        # Left side: RGB renderer (flat colour, instant)
+        rgb_side_lbl = Text("RGB renderer", font_size=18, color=TEXT_SEC)
+        rgb_side_lbl.move_to(LEFT * 3.5 + UP * 2.2)
+        rgb_surface = Rectangle(width=3.0, height=1.5,
+                                 fill_color=rgb_to_hex([0.85, 0.42, 0.10]), fill_opacity=1.0,
+                                 stroke_width=0)
+        rgb_surface.move_to(LEFT * 3.5 + UP * 0.7)
+
+        hook_bar_w = 0.32
+        hook_bar_data = [(MUTED_RED, 2.0), (MUTED_GREEN, 1.1), (MUTED_BLUE, 0.28)]
+        hook_rgb_bars = VGroup()
+        hook_rgb_lbls = VGroup()
+        for i, (col, bh) in enumerate(hook_bar_data):
+            xb = rgb_surface.get_center()[0] + (i - 1) * 0.6
+            yb = rgb_surface.get_bottom()[1] - 0.28 - bh / 2
+            b = Rectangle(width=hook_bar_w, height=bh,
+                           fill_color=col, fill_opacity=0.85, stroke_width=0)
+            b.move_to([xb, yb, 0])
+            hook_rgb_bars.add(b)
+        for col, label in [(MUTED_RED, "R"), (MUTED_GREEN, "G"), (MUTED_BLUE, "B")]:
+            t = Text(label, font_size=12, color=col)
+            hook_rgb_lbls.add(t)
+        for bar, lbl in zip(hook_rgb_bars, hook_rgb_lbls):
+            lbl.next_to(bar, DOWN, buff=0.06)
+
+        rgb_done_lbl = Text("Three numbers. Done.", font_size=13, color=TEXT_SEC)
+        rgb_done_lbl.next_to(hook_rgb_bars, DOWN, buff=0.18)
+
+        # Right side: spectral renderer (curve → integrate → swatch)
+        spec_side_lbl = Text("Spectral renderer", font_size=18, color=ACCENT_TEAL)
+        spec_side_lbl.move_to(RIGHT * 3.5 + UP * 2.2)
+        hook_axes = Axes(
+            x_range=[380, 780, 200], y_range=[0, 1.0, 0.5],
+            x_length=3.5, y_length=1.5, tips=False,
+            axis_config={"color": GRID_COL, "stroke_width": 1.0,
+                         "include_ticks": False, "include_tip": False})
+        hook_axes.move_to(RIGHT * 3.5 + UP * 0.7)
+
+        def _orange_refl(w):
+            return 0.9 * np.exp(-0.5 * ((w - 600) / 55) ** 2)
+        hook_refl_plot = hook_axes.plot(_orange_refl, color=ACCENT_ORANGE,
+                                         stroke_width=2.5, x_range=[380, 780, 5])
+        hook_refl_area = hook_axes.get_area(hook_refl_plot, x_range=[380, 780],
+                                             color=ACCENT_ORANGE, opacity=0.0)
+
+        _Xo, _Yo, _Zo = spd_to_xyz(_orange_refl, illuminant_d65_spd)
+        spec_swatch_col = rgb_to_hex(np.clip(xyz_to_srgb(_Xo, _Yo, _Zo), 0, 1))
+        spec_xyz_lbl = VGroup(
+            Text(f"X={_Xo:.2f}", font_size=11, color=MUTED_RED),
+            Text(f"Y={_Yo:.2f}", font_size=11, color=MUTED_GREEN),
+            Text(f"Z={_Zo:.2f}", font_size=11, color=MUTED_BLUE),
+        ).arrange(RIGHT, buff=0.2)
+        spec_xyz_lbl.next_to(hook_axes, DOWN, buff=0.12)
+
+        spec_swatch = Rectangle(width=0.9, height=0.9,
+                                 fill_color=spec_swatch_col, fill_opacity=1.0,
+                                 stroke_width=1.5, stroke_color=TEXT_SEC)
+        spec_swatch.next_to(spec_xyz_lbl, RIGHT, buff=0.25)
+
+        hook_caption = Text("RGB: shortcut  ·  Spectral: physics", font_size=18,
+                             color=ACCENT_TEAL)
+        hook_caption.move_to(DOWN * 2.4)
+
+        # Vertical divider
+        v_div = DashedLine(UP * 2.5, DOWN * 2.0, color=GRID_COL, stroke_width=1.5,
+                            dash_length=0.15)
+
+        self.play(FadeIn(rgb_side_lbl), FadeIn(spec_side_lbl), FadeIn(v_div), run_time=0.8)
+        self.play(FadeIn(rgb_surface), run_time=0.6)
+        self.play(GrowFromEdge(hook_rgb_bars[0], DOWN),
+                  GrowFromEdge(hook_rgb_bars[1], DOWN),
+                  GrowFromEdge(hook_rgb_bars[2], DOWN),
+                  FadeIn(hook_rgb_lbls), run_time=0.9)
+        self.play(FadeIn(rgb_done_lbl), run_time=0.5)
+
+        self.play(Create(hook_axes), run_time=0.8)
+        self.play(Create(hook_refl_plot), run_time=1.8)
+        self.play(hook_refl_area.animate.set_fill(opacity=0.28), run_time=1.0)
+        self.play(FadeIn(spec_xyz_lbl, lag_ratio=0.4), run_time=1.0)
+        self.play(FadeIn(spec_swatch, scale=1.3), run_time=0.7)
+        self.play(FadeIn(hook_caption, shift=UP * 0.15), run_time=0.8)
+        self.wait(2.5)
+        self.play(*[FadeOut(m) for m in self.mobjects if m is not ch], run_time=1.2)
 
         # ── Act 1: RGB vs spectral rendering pipeline ─────────────────
-        act1_title = Text("RGB Rendering vs Spectral Rendering",
-                          font_size=24, color=ACCENT_TEAL)
-        act1_title.move_to(UP * 1.4)
-        self.play(FadeIn(act1_title))
 
-        # RGB pipeline
-        rgb_blocks = ["Light\n(RGB)", "×  Material\n(RGB albedo)", "=  Pixel\n(RGB)"]
-        rgb_cols = [ACCENT_YELLOW, MUTED_GREEN, ACCENT_ORANGE]
+        # RGB pipeline — VGroup labels (no \n in Text)
+        rgb_block_data = [
+            ("Light", "(RGB)",       ACCENT_YELLOW),
+            ("×  Material", "(RGB albedo)", MUTED_GREEN),
+            ("=  Pixel", "(RGB)",    ACCENT_ORANGE),
+        ]
         rgb_row = VGroup()
-        for lbl, col in zip(rgb_blocks, rgb_cols):
-            b = RoundedRectangle(corner_radius=0.12, width=2.2, height=1.1,
+        for main_s, sub_s, col in rgb_block_data:
+            b = RoundedRectangle(corner_radius=0.12, width=2.4, height=1.1,
                                  fill_color=PANEL, fill_opacity=0.9,
                                  stroke_color=col, stroke_width=1.8)
-            t = Text(lbl, font_size=15, color=col, line_spacing=1.1)
-            t.move_to(b)
-            rgb_row.add(VGroup(b, t))
+            lbl = VGroup(
+                Text(main_s, font_size=15, color=col),
+                Text(sub_s,  font_size=12, color=col),
+            ).arrange(DOWN, buff=0.06)
+            lbl.move_to(b)
+            rgb_row.add(VGroup(b, lbl))
         rgb_row.arrange(RIGHT, buff=0.25)
-        rgb_row.move_to(LEFT * 1.5 + UP * 0.35)
 
         rgb_label = Text("RGB Pipeline:", font_size=17, color=TEXT_SEC)
-        rgb_label.next_to(rgb_row, LEFT, buff=0.3)
+        VGroup(rgb_label, rgb_row).arrange(RIGHT, buff=0.3)
+        VGroup(rgb_label, rgb_row).next_to(ch, DOWN, buff=0.55)
         self.play(FadeIn(rgb_label), FadeIn(rgb_row, lag_ratio=0.3), run_time=1.8)
 
-        rgb_pro = Text("✗ Can't model dispersion, fluorescence, thin-film",
+        rgb_pro = Text("✗  Can't model dispersion, fluorescence, thin-film",
                        font_size=16, color=MUTED_RED)
-        rgb_pro.next_to(rgb_row, DOWN, buff=0.2)
+        rgb_pro.next_to(rgb_row, DOWN, buff=0.22)
         self.play(FadeIn(rgb_pro))
 
-        # Spectral pipeline
-        spec_blocks = ["Light SPD\n(λ)", "×  Reflectance\nSPD(λ)", "∫  CMF\n→XYZ", "→  RGB"]
-        spec_cols = [ACCENT_YELLOW, ACCENT_TEAL, ACCENT_PURPLE, ACCENT_ORANGE]
+        # Spectral pipeline — VGroup labels (no \n in Text)
+        spec_block_data = [
+            ("Light SPD", "(λ)",           ACCENT_YELLOW),
+            ("× Reflectance", "SPD(λ)",    ACCENT_TEAL),
+            ("∫  CMF", "→ XYZ",            ACCENT_PURPLE),
+            ("→  RGB", "",                 ACCENT_ORANGE),
+        ]
         spec_row = VGroup()
-        for lbl, col in zip(spec_blocks, spec_cols):
-            b = RoundedRectangle(corner_radius=0.12, width=1.9, height=1.1,
+        for main_s, sub_s, col in spec_block_data:
+            b = RoundedRectangle(corner_radius=0.12, width=1.95, height=1.1,
                                  fill_color=PANEL, fill_opacity=0.9,
                                  stroke_color=col, stroke_width=1.8)
-            t = Text(lbl, font_size=14, color=col, line_spacing=1.1)
-            t.move_to(b)
-            spec_row.add(VGroup(b, t))
+            lbl = VGroup(
+                Text(main_s, font_size=14, color=col),
+                Text(sub_s,  font_size=11, color=col),
+            ).arrange(DOWN, buff=0.06)
+            lbl.move_to(b)
+            spec_row.add(VGroup(b, lbl))
         spec_row.arrange(RIGHT, buff=0.2)
-        spec_row.move_to(LEFT * 0.8 + DOWN * 1.0)
 
         spec_label = Text("Spectral Pipeline:", font_size=17, color=TEXT_SEC)
-        spec_label.next_to(spec_row, LEFT, buff=0.3)
+        VGroup(spec_label, spec_row).arrange(RIGHT, buff=0.3)
+        VGroup(spec_label, spec_row).next_to(rgb_pro, DOWN, buff=0.38)
         self.play(FadeIn(spec_label), FadeIn(spec_row, lag_ratio=0.3), run_time=1.8)
 
-        spec_pro = Text("✓ Correct dispersion · fluorescence · thin-film interference",
+        spec_pro = Text("✓  Correct dispersion · fluorescence · thin-film interference",
                         font_size=16, color=ACCENT_GREEN)
-        spec_pro.next_to(spec_row, DOWN, buff=0.2)
+        spec_pro.next_to(spec_row, DOWN, buff=0.22)
         self.play(FadeIn(spec_pro))
         self.wait(3.5)
 
@@ -1664,9 +1887,10 @@ class SpectralRenderingScene(Scene):
         refl_plot = refl_axes.plot_line_graph(
             wls, refl_vals, line_color=ACCENT_GREEN, stroke_width=3,
             add_vertex_dots=False)
-        prod_plot = refl_axes.plot_line_graph(
-            wls, refl_vals * d65_vals / d65_max, line_color=ACCENT_TEAL,
-            stroke_width=2.5, add_vertex_dots=False)
+        # Use axes.plot() for prod so get_area works (requires ParametricFunction)
+        prod_plot = refl_axes.plot(
+            lambda w: float(green_reflect(w) * illuminant_d65_spd(w) / d65_max),
+            color=ACCENT_TEAL, stroke_width=2.5, x_range=[380, 780, 2])
 
         d65_lbl = Text("Illuminant SPD", font_size=14, color=ACCENT_YELLOW)
         d65_lbl.move_to(refl_axes.c2p(680, 1.1))
@@ -1679,17 +1903,42 @@ class SpectralRenderingScene(Scene):
         self.play(Create(refl_plot), FadeIn(refl_lbl), run_time=1.8)
         self.play(Create(prod_plot), FadeIn(prod_lbl), run_time=1.8)
 
-        spec_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
-                                    fill_color=PANEL, fill_opacity=0.9,
-                                    stroke_color=ACCENT_TEAL, stroke_width=1.5)
-        spec_box.to_edge(DOWN, buff=0.25)
+        # Animated fill area under product curve
+        prod_area = refl_axes.get_area(prod_plot, x_range=[380, 780],
+                                        color=ACCENT_TEAL, opacity=0.0)
+        self.add(prod_area)
+        self.play(prod_area.animate.set_fill(opacity=0.28), run_time=1.2)
+
+        # Integration sweep line
+        sweep = Line(refl_axes.c2p(380, 0), refl_axes.c2p(380, 1.25),
+                     color=ACCENT_YELLOW, stroke_width=2.5)
+        self.add(sweep)
+        self.play(sweep.animate.move_to(refl_axes.c2p(780, 0.625)),
+                  run_time=2.5, rate_func=linear)
+        self.play(FadeOut(sweep), run_time=0.5)
+
+        # Computed result swatch
+        _Xg2, _Yg2, _Zg2 = spd_to_xyz(green_reflect, illuminant_d65_spd)
+        result_col = rgb_to_hex(np.clip(xyz_to_srgb(_Xg2, _Yg2, _Zg2), 0, 1))
+        result_swatch = Rectangle(width=1.5, height=1.0,
+                                   fill_color=result_col, fill_opacity=1.0,
+                                   stroke_width=1.5, stroke_color=TEXT_SEC)
+        result_swatch.move_to(RIGHT * 5.5 + UP * 0.8)
+        result_swatch_lbl = Text("Result", font_size=13, color=TEXT_SEC)
+        result_swatch_lbl.next_to(result_swatch, DOWN, buff=0.1)
+        self.play(FadeIn(result_swatch, scale=1.3), FadeIn(result_swatch_lbl))
+
         spec_txt = VGroup(
             Text("SPD × reflectance × CMFs → XYZ → sRGB",
                  font_size=18, color=ACCENT_TEAL),
             Text("Weta, Pixar, and Chaos use spectral engines for physically correct results",
                  font_size=16, color=TEXT_PRI),
-        )
-        spec_txt.arrange(DOWN, buff=0.08)
+        ).arrange(DOWN, buff=0.1)
+        spec_box = RoundedRectangle(corner_radius=0.12,
+            width=spec_txt.width + 0.6, height=spec_txt.height + 0.4,
+            fill_color=PANEL, fill_opacity=0.9,
+            stroke_color=ACCENT_TEAL, stroke_width=1.5)
+        spec_box.to_edge(DOWN, buff=0.45)
         spec_txt.move_to(spec_box)
         self.play(FadeIn(spec_box), FadeIn(spec_txt))
         self.wait(7)
@@ -1707,20 +1956,55 @@ class MetamerismScene(Scene):
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
 
-        intro = Text(
-            "Two different spectral distributions that produce the same XYZ response",
-            font_size=20, color=TEXT_SEC)
-        intro.next_to(ch, DOWN, buff=0.35)
-        self.play(FadeIn(intro))
+        # ── Act 0: Animated metameric reveal hook ────────────────────
+        match_col = "#6aab7c"
+        sw_A = Rectangle(width=2.2, height=1.4,
+                          fill_color=match_col, fill_opacity=1.0,
+                          stroke_color=TEXT_SEC, stroke_width=1.5)
+        sw_B = Rectangle(width=2.2, height=1.4,
+                          fill_color=match_col, fill_opacity=1.0,
+                          stroke_color=TEXT_SEC, stroke_width=1.5)
+        eq_hook = Text("=", font_size=40, color=ACCENT_GREEN)
+        hook_swatch_grp = VGroup(sw_A, eq_hook, sw_B).arrange(RIGHT, buff=0.5)
+        hook_swatch_grp.move_to(UP * 0.6)
+
+        lbl_A = Text("Object A", font_size=15, color=TEXT_SEC)
+        lbl_A.next_to(sw_A, UP, buff=0.18)
+        lbl_B = Text("Object B", font_size=15, color=TEXT_SEC)
+        lbl_B.next_to(sw_B, UP, buff=0.18)
+        light_cap = Text("Under daylight", font_size=15, color=TEXT_SEC)
+        light_cap.next_to(hook_swatch_grp, DOWN, buff=0.28)
+
+        self.play(FadeIn(hook_swatch_grp), FadeIn(lbl_A), FadeIn(lbl_B),
+                  FadeIn(light_cap), run_time=1.2)
+        self.wait(2.0)
+
+        # Warm overlay simulating tungsten light change
+        warm_overlay = Rectangle(width=14.2, height=8.0,
+                                  fill_color="#c07020", fill_opacity=0.0, stroke_width=0)
+        self.add(warm_overlay)
+        neq_hook = Text("≠", font_size=40, color=MUTED_RED)
+        neq_hook.move_to(eq_hook.get_center())
+        tungsten_cap = Text("Under tungsten lamp", font_size=15, color=ACCENT_ORANGE)
+        tungsten_cap.move_to(light_cap.get_center())
+        self.play(
+            warm_overlay.animate.set_fill(opacity=0.16),
+            sw_A.animate.set_fill(color="#8a6a3c"),
+            sw_B.animate.set_fill(color="#4d6b55"),
+            Transform(eq_hook, neq_hook),
+            Transform(light_cap, tungsten_cap),
+            run_time=1.8)
+        self.wait(3.0)
+        self.play(*[FadeOut(m) for m in self.mobjects if m is not ch], run_time=1.2)
 
         # ── Act 1: Metameric pair under D65 ──────────────────────────
         wls = np.linspace(380, 780, 200)
 
         spd_axes = Axes(
             x_range=[380, 780, 100], y_range=[0, 1.3, 0.5],
-            x_length=9, y_length=3.2, tips=False,
+            x_length=9, y_length=2.6, tips=False,
             axis_config={"color": GRID_COL, "stroke_width": 1.5})
-        spd_axes.move_to(UP * 0.3)
+        spd_axes.move_to(UP * 0.9)
         spd_x_lbl = Text("λ (nm)", font_size=14, color=TEXT_SEC)
         spd_x_lbl.next_to(spd_axes, DOWN, buff=0.10)
 
@@ -1756,18 +2040,17 @@ class MetamerismScene(Scene):
         swatch1_col = rgb_to_hex(np.clip(xyz_to_srgb(X1, Y1, Z1), 0, 1))
         swatch2_col = rgb_to_hex(np.clip(xyz_to_srgb(X2, Y2, Z2), 0, 1))
 
-        sw_y = -2.5
         sw1 = Rectangle(width=2.2, height=1.0, fill_color=swatch1_col,
                         fill_opacity=1.0, stroke_color=TEXT_SEC, stroke_width=1.5)
-        sw1.move_to(LEFT * 1.8 + UP * sw_y)
         sw2 = Rectangle(width=2.2, height=1.0, fill_color=swatch2_col,
                         fill_opacity=1.0, stroke_color=TEXT_SEC, stroke_width=1.5)
-        sw2.move_to(RIGHT * 1.0 + UP * sw_y)
         eq_sign = Text("≈", font_size=32, color=ACCENT_GREEN)
-        eq_sign.move_to(UP * sw_y)
-        d65_tag = Text("Under D65", font_size=14, color=ACCENT_GREEN)
-        d65_tag.move_to(UP * (sw_y + 0.7))
-        self.play(FadeIn(sw1), FadeIn(sw2), FadeIn(eq_sign), FadeIn(d65_tag))
+        swatch_grp = VGroup(sw1, eq_sign, sw2).arrange(RIGHT, buff=0.45)
+        swatch_grp.next_to(spd_axes, DOWN, buff=0.55)
+
+        d65_tag = Text("Under D65  (both look the same)", font_size=14, color=ACCENT_GREEN)
+        d65_tag.next_to(swatch_grp, UP, buff=0.18)
+        self.play(FadeIn(swatch_grp), FadeIn(d65_tag))
         self.wait(3.5)
 
         # ── Act 2: Switch to Illuminant A → colors diverge ───────────
@@ -1776,10 +2059,8 @@ class MetamerismScene(Scene):
         swatch1a_col = rgb_to_hex(np.clip(xyz_to_srgb(X1a, Y1a, Z1a), 0, 1))
         swatch2a_col = rgb_to_hex(np.clip(xyz_to_srgb(X2a, Y2a, Z2a), 0, 1))
 
-        illum_change = Text("Switch to Illuminant A  (2856 K tungsten):",
-                            font_size=18, color=ACCENT_ORANGE)
-        illum_change.move_to(UP * (sw_y + 1.5))
-        self.play(Transform(d65_tag, illum_change))
+        illum_change = Text("Under Illuminant A  (tungsten)", font_size=14, color=ACCENT_ORANGE)
+        illum_change.next_to(swatch_grp, UP, buff=0.18)
 
         sw1_new = Rectangle(width=2.2, height=1.0, fill_color=swatch1a_col,
                             fill_opacity=1.0, stroke_color=TEXT_SEC, stroke_width=1.5)
@@ -1789,22 +2070,31 @@ class MetamerismScene(Scene):
         sw2_new.move_to(sw2.get_center())
         neq_sign = Text("≠", font_size=32, color=MUTED_RED)
         neq_sign.move_to(eq_sign.get_center())
-        self.play(Transform(sw1, sw1_new), Transform(sw2, sw2_new),
-                  Transform(eq_sign, neq_sign), run_time=1.2)
+
+        warm_ov = Rectangle(width=14.2, height=8.0,
+                             fill_color="#c06010", fill_opacity=0.0, stroke_width=0)
+        self.add(warm_ov)
+        self.play(warm_ov.animate.set_fill(opacity=0.13), run_time=1.0)
+        self.play(
+            Transform(sw1, sw1_new),
+            Transform(sw2, sw2_new),
+            Transform(eq_sign, neq_sign),
+            Transform(d65_tag, illum_change),
+            warm_ov.animate.set_fill(opacity=0.0),
+            run_time=1.5)
         self.wait(3.5)
 
         # ── Act 3: Engineering callout ────────────────────────────────
-        meta_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.3,
-                                    fill_color=PANEL, fill_opacity=0.9,
-                                    stroke_color=ACCENT_PINK, stroke_width=1.5)
-        meta_box.to_edge(DOWN, buff=0.2)
         meta_txt = VGroup(
-            Text("Color sensors see metameric matches.",
-                 font_size=18, color=ACCENT_PINK),
-            Text("Illuminant metamerism is why white balance matters.",
-                 font_size=18, color=TEXT_PRI),
-        )
-        meta_txt.arrange(DOWN, buff=0.12)
+            Text("Color sensors see metameric matches.", font_size=18, color=ACCENT_PINK),
+            Text("This is why white balance and ICC profiles exist.",
+                 font_size=17, color=TEXT_PRI),
+        ).arrange(DOWN, buff=0.12)
+        meta_box = RoundedRectangle(corner_radius=0.12,
+            width=meta_txt.width + 0.6, height=meta_txt.height + 0.4,
+            fill_color=PANEL, fill_opacity=0.9,
+            stroke_color=ACCENT_PINK, stroke_width=1.5)
+        meta_box.to_edge(DOWN, buff=0.45)
         meta_txt.move_to(meta_box)
         self.play(FadeIn(meta_box), FadeIn(meta_txt))
         self.wait(7)
