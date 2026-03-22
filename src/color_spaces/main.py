@@ -689,11 +689,11 @@ class TitleScene(Scene):
 
         self.play(Write(title, run_time=1.6),
                   FadeIn(sub, shift=UP * 0.3, run_time=1.4))
-        self.play(Create(rainbow, run_time=0.8))
+        self.play(Create(rainbow, run_time=1.8))
         self.play(dots.animate.scale(1.12).set_opacity(0.18), run_time=1.8,
                   rate_func=smooth)
-        self.wait(1.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(3.5)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -755,10 +755,10 @@ class ElectromagneticSpectrumScene(Scene):
                         color=ACCENT_YELLOW)
         vis_lbl.next_to(vis_brace, DOWN, buff=0.15)
         self.play(Create(vis_brace), FadeIn(vis_lbl))
-        self.wait(1.5)
+        self.wait(3.5)
 
         # Zoom into visible spectrum
-        self.play(*[FadeOut(m) for m in [em_bar, vis_brace, vis_lbl]], run_time=0.6)
+        self.play(*[FadeOut(m) for m in [em_bar, vis_brace, vis_lbl]], run_time=1.4)
 
         zoom_title = Text("The Visible Spectrum", font_size=28, color=TEXT_PRI)
         zoom_title.move_to(UP * 1.8)
@@ -802,8 +802,8 @@ class ElectromagneticSpectrumScene(Scene):
             font_size=22, color=ACCENT_TEAL)
         insight.to_edge(DOWN, buff=0.4)
         self.play(FadeIn(insight, shift=UP * 0.2))
-        self.wait(2.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(5)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -846,8 +846,8 @@ class GammaTransferScene(Scene):
         ideal_lbl = Text("ideal 1:1", font_size=14, color=GRID_COL)
         ideal_lbl.move_to(gamma_axes.c2p(0.7, 0.75))
 
-        self.play(Create(gamma_axes), FadeIn(gx_lbl), FadeIn(gy_lbl), run_time=0.6)
-        self.play(Create(ideal_plot), FadeIn(ideal_lbl), run_time=0.5)
+        self.play(Create(gamma_axes), FadeIn(gx_lbl), FadeIn(gy_lbl), run_time=1.4)
+        self.play(Create(ideal_plot), FadeIn(ideal_lbl), run_time=1.2)
         self.play(Create(crt_plot), FadeIn(crt_plot_lbl), run_time=1.0)
 
         # Right panel: explanation
@@ -860,11 +860,11 @@ class GammaTransferScene(Scene):
         explain_lines.arrange(DOWN, aligned_edge=LEFT, buff=0.28)
         explain_lines.move_to(RIGHT * 2.8 + DOWN * 0.6)
         for line in explain_lines:
-            self.play(FadeIn(line), run_time=0.4)
-        self.wait(1.5)
+            self.play(FadeIn(line), run_time=1.0)
+        self.wait(3.5)
 
         # ── Act 2: sRGB piecewise EOTF/OETF ─────────────────────────
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.5)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.2)
         self.play(FadeIn(ch))
 
         srgb_title = Text("sRGB Transfer Function  (IEC 61966-2-1)",
@@ -896,9 +896,9 @@ class GammaTransferScene(Scene):
         lin_seg_ann = Text("linear\nbelow 0.04045", font_size=13, color=ACCENT_YELLOW)
         lin_seg_ann.move_to(eotf_axes.c2p(0.10, 0.25))
 
-        self.play(Create(eotf_axes), FadeIn(ex_lbl), FadeIn(ey_lbl), run_time=0.6)
+        self.play(Create(eotf_axes), FadeIn(ex_lbl), FadeIn(ey_lbl), run_time=1.4)
         self.play(Create(eotf_plot), FadeIn(eotf_lbl), run_time=1.0)
-        self.play(Create(lin_seg), FadeIn(lin_seg_ann), run_time=0.7)
+        self.play(Create(lin_seg), FadeIn(lin_seg_ann), run_time=1.5)
 
         # 50% gray comparison
         gray_lines = VGroup(
@@ -909,11 +909,11 @@ class GammaTransferScene(Scene):
         gray_lines.arrange(DOWN, aligned_edge=LEFT, buff=0.3)
         gray_lines.move_to(RIGHT * 2.8 + DOWN * 0.5)
         for line in gray_lines:
-            self.play(FadeIn(line), run_time=0.5)
-        self.wait(2.0)
+            self.play(FadeIn(line), run_time=1.2)
+        self.wait(4)
 
         # ── Act 3: Quantization and banding ──────────────────────────
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.5)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.2)
         self.play(FadeIn(ch))
 
         quant_title = Text("Quantization: Why 8-bit gamma is enough",
@@ -950,8 +950,8 @@ class GammaTransferScene(Scene):
             r2.move_to(LEFT * bar_w / 2 + RIGHT * (i * sw + sw / 2) + DOWN * 1.5)
             gam_bar.add(r2)
 
-        self.play(FadeIn(lin_bar), run_time=0.7)
-        self.play(FadeIn(gam_bar), run_time=0.7)
+        self.play(FadeIn(lin_bar), run_time=1.5)
+        self.play(FadeIn(gam_bar), run_time=1.5)
 
         quant_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
                                       fill_color=PANEL, fill_opacity=0.9,
@@ -962,8 +962,8 @@ class GammaTransferScene(Scene):
             font_size=18, color=ACCENT_YELLOW)
         quant_insight.move_to(quant_box)
         self.play(FadeIn(quant_box), FadeIn(quant_insight))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1035,7 +1035,7 @@ class HumanVisionScene(Scene):
         l_lbl = Text("L", font_size=20, color="#ef5350", weight=BOLD)
         l_lbl.move_to(axes.c2p(600, 1.08))
 
-        self.play(Create(axes), FadeIn(x_lbl), FadeIn(y_lbl), run_time=0.7)
+        self.play(Create(axes), FadeIn(x_lbl), FadeIn(y_lbl), run_time=1.5)
         self.play(Create(s_plot), FadeIn(s_area), FadeIn(s_lbl), run_time=0.9)
         self.play(Create(m_plot), FadeIn(m_area), FadeIn(m_lbl), run_time=0.9)
         self.play(Create(l_plot), FadeIn(l_area), FadeIn(l_lbl), run_time=0.9)
@@ -1049,10 +1049,10 @@ class HumanVisionScene(Scene):
             font_size=20, color=ACCENT_YELLOW)
         insight.move_to(box)
         self.play(FadeIn(box), FadeIn(insight))
-        self.wait(3)
+        self.wait(6)
 
         # ── Act 2: Opponent Process Theory ───────────────────────────────
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.6)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.4)
 
         op_title = Text("Opponent Process Theory  (Hering 1892)",
                         font_size=38, color=ACCENT_PURPLE, weight=BOLD)
@@ -1073,7 +1073,7 @@ class HumanVisionScene(Scene):
                                  stroke_width=1.0, x_range=[380, 780])
         op_x_lbl = Text("λ (nm)", font_size=15, color=TEXT_SEC)
         op_x_lbl.next_to(op_axes, DOWN, buff=0.12)
-        self.play(Create(op_axes), Create(zero_line), FadeIn(op_x_lbl), run_time=0.6)
+        self.play(Create(op_axes), Create(zero_line), FadeIn(op_x_lbl), run_time=1.4)
 
         # Red-green channel: L − M
         rg_plot = op_axes.plot(
@@ -1111,8 +1111,8 @@ class HumanVisionScene(Scene):
             font_size=19, color=ACCENT_PURPLE)
         op_insight.move_to(op_box)
         self.play(FadeIn(op_box), FadeIn(op_insight))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1155,11 +1155,11 @@ class CIE1931Scene(Scene):
 
         self.play(FadeIn(obs), FadeIn(VGroup(test, test_lbl)),
                   FadeIn(VGroup(match, match_lbl)), FadeIn(result_txt))
-        self.wait(1.5)
+        self.wait(3.5)
 
         # Transition to CMFs
         self.play(FadeOut(VGroup(exp, obs, test, test_lbl, match,
-                                  match_lbl, result_txt, ctx)), run_time=0.5)
+                                  match_lbl, result_txt, ctx)), run_time=1.2)
 
         cmf_title = Text("Color Matching Functions  x̄(λ), ȳ(λ), z̄(λ)", font_size=24,
                           color=TEXT_PRI)
@@ -1186,7 +1186,7 @@ class CIE1931Scene(Scene):
         zl = MathTex(r"\bar{z}", font_size=26, color=MUTED_BLUE)
         zl.move_to(axes.c2p(445, 1.55))
 
-        self.play(Create(axes, run_time=0.6))
+        self.play(Create(axes, run_time=1.4))
         self.play(Create(x_plot, run_time=1.2), FadeIn(xl))
         self.play(Create(y_plot, run_time=1.2), FadeIn(yl))
         self.play(Create(z_plot, run_time=1.2), FadeIn(zl))
@@ -1198,10 +1198,10 @@ class CIE1931Scene(Scene):
             font_size=22, color=TEXT_PRI)
         formula.to_edge(DOWN, buff=0.3)
         self.play(Write(formula, run_time=1.5))
-        self.wait(2)
+        self.wait(4)
 
         # ── Act 2: r̄ḡb̄ negative lobes → why XYZ was needed ──────────
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.6)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.4)
 
         rgb_ch = Text("The Original CIE RGB Experiment: r̄ḡb̄", font_size=34,
                       color=ACCENT_ORANGE, weight=BOLD)
@@ -1217,7 +1217,7 @@ class CIE1931Scene(Scene):
                                   stroke_width=1.0, x_range=[380, 780])
         rgb_x_lbl = Text("λ (nm)", font_size=15, color=TEXT_SEC)
         rgb_x_lbl.next_to(rgb_axes, DOWN, buff=0.12)
-        self.play(Create(rgb_axes), Create(rgb_zero), FadeIn(rgb_x_lbl), run_time=0.6)
+        self.play(Create(rgb_axes), Create(rgb_zero), FadeIn(rgb_x_lbl), run_time=1.4)
 
         r_plot = rgb_axes.plot(rbar, color=MUTED_RED, stroke_width=3.5,
                                 x_range=[380, 780, 2])
@@ -1247,7 +1247,7 @@ class CIE1931Scene(Scene):
                        color=MUTED_RED)
         neg_ann.next_to(neg_rect, DOWN, buff=0.05)
         self.play(FadeIn(neg_rect), FadeIn(neg_ann))
-        self.wait(1.5)
+        self.wait(3.5)
 
         # Show transformation arrow → x̄ȳz̄
         transform_box = RoundedRectangle(corner_radius=0.10, width=10.5, height=1.0,
@@ -1259,8 +1259,8 @@ class CIE1931Scene(Scene):
             font_size=18, color=ACCENT_ORANGE)
         transform_txt.move_to(transform_box)
         self.play(FadeIn(transform_box), FadeIn(transform_txt))
-        self.wait(3)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(6)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1303,7 +1303,7 @@ class SpectralRenderingScene(Scene):
 
         rgb_label = Text("RGB Pipeline:", font_size=17, color=TEXT_SEC)
         rgb_label.next_to(rgb_row, LEFT, buff=0.3)
-        self.play(FadeIn(rgb_label), FadeIn(rgb_row, lag_ratio=0.3), run_time=0.8)
+        self.play(FadeIn(rgb_label), FadeIn(rgb_row, lag_ratio=0.3), run_time=1.8)
 
         rgb_pro = Text("✗ Can't model dispersion, fluorescence, thin-film",
                        font_size=16, color=MUTED_RED)
@@ -1326,17 +1326,17 @@ class SpectralRenderingScene(Scene):
 
         spec_label = Text("Spectral Pipeline:", font_size=17, color=TEXT_SEC)
         spec_label.next_to(spec_row, LEFT, buff=0.3)
-        self.play(FadeIn(spec_label), FadeIn(spec_row, lag_ratio=0.3), run_time=0.8)
+        self.play(FadeIn(spec_label), FadeIn(spec_row, lag_ratio=0.3), run_time=1.8)
 
         spec_pro = Text("✓ Correct dispersion · fluorescence · thin-film interference",
                         font_size=16, color=ACCENT_GREEN)
         spec_pro.next_to(spec_row, DOWN, buff=0.2)
         self.play(FadeIn(spec_pro))
-        self.wait(1.5)
+        self.wait(3.5)
 
         # ── Act 2: The CMF integral is the bridge ─────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         bridge_title = Text("XYZ is the Correct Integration Target — Not RGB",
                             font_size=24, color=ACCENT_PURPLE)
@@ -1359,7 +1359,7 @@ class SpectralRenderingScene(Scene):
         refl_axes.move_to(DOWN * 0.4)
         rx_lbl = Text("λ (nm)", font_size=14, color=TEXT_SEC)
         rx_lbl.next_to(refl_axes, DOWN, buff=0.10)
-        self.play(Create(refl_axes), FadeIn(rx_lbl), run_time=0.5)
+        self.play(Create(refl_axes), FadeIn(rx_lbl), run_time=1.2)
 
         d65_plot = refl_axes.plot_line_graph(
             wls, d65_vals / d65_max, line_color=ACCENT_YELLOW, stroke_width=2.5,
@@ -1378,9 +1378,9 @@ class SpectralRenderingScene(Scene):
         prod_lbl = Text("× Product → integrate with CMFs", font_size=14, color=ACCENT_TEAL)
         prod_lbl.move_to(refl_axes.c2p(500, 0.65))
 
-        self.play(Create(d65_plot), FadeIn(d65_lbl), run_time=0.8)
-        self.play(Create(refl_plot), FadeIn(refl_lbl), run_time=0.8)
-        self.play(Create(prod_plot), FadeIn(prod_lbl), run_time=0.8)
+        self.play(Create(d65_plot), FadeIn(d65_lbl), run_time=1.8)
+        self.play(Create(refl_plot), FadeIn(refl_lbl), run_time=1.8)
+        self.play(Create(prod_plot), FadeIn(prod_lbl), run_time=1.8)
 
         spec_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
                                      fill_color=PANEL, fill_opacity=0.9,
@@ -1395,8 +1395,8 @@ class SpectralRenderingScene(Scene):
         spec_txt.arrange(DOWN, buff=0.08)
         spec_txt.move_to(spec_box)
         self.play(FadeIn(spec_box), FadeIn(spec_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1449,7 +1449,7 @@ class MetamerismScene(Scene):
         fl_lbl = Text("Fluorescent SPD", font_size=16, color=ACCENT_PINK)
         fl_lbl.move_to(spd_axes.c2p(430, 1.15))
 
-        self.play(Create(spd_axes), FadeIn(spd_x_lbl), run_time=0.6)
+        self.play(Create(spd_axes), FadeIn(spd_x_lbl), run_time=1.4)
         self.play(Create(d65_plot), FadeIn(d65_lbl), run_time=1.0)
         self.play(Create(fl_plot), FadeIn(fl_lbl), run_time=1.0)
 
@@ -1471,7 +1471,7 @@ class MetamerismScene(Scene):
         d65_tag = Text("Under D65", font_size=14, color=ACCENT_GREEN)
         d65_tag.move_to(UP * (sw_y + 0.7))
         self.play(FadeIn(sw1), FadeIn(sw2), FadeIn(eq_sign), FadeIn(d65_tag))
-        self.wait(1.5)
+        self.wait(3.5)
 
         # ── Act 2: Switch to Illuminant A → colors diverge ───────────
         X1a, Y1a, Z1a = spd_to_xyz(illuminant_d65_spd, illuminant_a_spd)
@@ -1494,7 +1494,7 @@ class MetamerismScene(Scene):
         neq_sign.move_to(eq_sign.get_center())
         self.play(Transform(sw1, sw1_new), Transform(sw2, sw2_new),
                   Transform(eq_sign, neq_sign), run_time=1.2)
-        self.wait(1.5)
+        self.wait(3.5)
 
         # ── Act 3: Engineering callout ────────────────────────────────
         meta_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.3,
@@ -1510,8 +1510,8 @@ class MetamerismScene(Scene):
         meta_txt.arrange(DOWN, buff=0.12)
         meta_txt.move_to(meta_box)
         self.play(FadeIn(meta_box), FadeIn(meta_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1542,7 +1542,7 @@ class IlluminantsChromAdaptScene(Scene):
         ax_lbl.next_to(axes, DOWN, buff=0.10)
         ay_lbl = Text("y", font_size=14, color=TEXT_SEC).rotate(PI / 2)
         ay_lbl.next_to(axes, LEFT, buff=0.10)
-        self.play(Create(axes), FadeIn(ax_lbl), FadeIn(ay_lbl), run_time=0.6)
+        self.play(Create(axes), FadeIn(ax_lbl), FadeIn(ay_lbl), run_time=1.4)
 
         # Draw spectral locus dots for reference
         wl_range = range(380, 700, 6)
@@ -1601,8 +1601,8 @@ class IlluminantsChromAdaptScene(Scene):
         brad_lines.arrange(DOWN, aligned_edge=LEFT, buff=0.25)
         brad_lines.move_to(RIGHT * 2.8 + DOWN * 0.0)
         for line in brad_lines:
-            self.play(FadeIn(line), run_time=0.4)
-        self.wait(1.0)
+            self.play(FadeIn(line), run_time=1.0)
+        self.wait(2.5)
 
         # ── Act 3: Practical usage ────────────────────────────────────
         brad_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.3,
@@ -1618,8 +1618,8 @@ class IlluminantsChromAdaptScene(Scene):
         brad_txt.arrange(DOWN, buff=0.12)
         brad_txt.move_to(brad_box)
         self.play(FadeIn(brad_box), FadeIn(brad_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1640,10 +1640,10 @@ class ColorConstancyScene(Scene):
             font_size=18, color=TEXT_SEC, line_spacing=1.2)
         intro.next_to(ch, DOWN, buff=0.3)
         self.play(FadeIn(intro))
-        self.wait(1.0)
+        self.wait(2.5)
 
         # ── Act 1: Checker shadow illusion ────────────────────────────
-        self.play(FadeOut(intro), run_time=0.4)
+        self.play(FadeOut(intro), run_time=1.0)
 
         shadow_title = Text("The Checker Shadow Illusion  (Adelson 1995)",
                             font_size=26, color=ACCENT_ORANGE, weight=BOLD)
@@ -1722,7 +1722,7 @@ class ColorConstancyScene(Scene):
 
         # ── Act 2: The Dress ──────────────────────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         dress_title = Text('"The Dress" (2015) — Ambiguous Illuminant',
                            font_size=28, color=ACCENT_PURPLE, weight=BOLD)
@@ -1741,7 +1741,7 @@ class ColorConstancyScene(Scene):
         dress_desc.arrange(DOWN, aligned_edge=LEFT, buff=0.22)
         dress_desc.move_to(UP * 0.3)
         for line in dress_desc:
-            self.play(FadeIn(line), run_time=0.4)
+            self.play(FadeIn(line), run_time=1.0)
 
         # Show two swatch pairs
         dress_sw = VGroup(
@@ -1759,7 +1759,7 @@ class ColorConstancyScene(Scene):
         for i, lbl in enumerate(dress_sw_lbl):
             lbl.next_to(dress_sw[i], DOWN, buff=0.1)
         self.play(FadeIn(dress_sw), FadeIn(dress_sw_lbl))
-        self.wait(1.5)
+        self.wait(3.5)
 
         # ── Act 3: Connection to Bradford ────────────────────────────
         constancy_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.3,
@@ -1775,8 +1775,8 @@ class ColorConstancyScene(Scene):
         constancy_txt.arrange(DOWN, buff=0.12)
         constancy_txt.move_to(constancy_box)
         self.play(FadeIn(constancy_box), FadeIn(constancy_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1807,7 +1807,7 @@ class ChromaticityScene(Scene):
         axes.move_to(DOWN * 0.35 + LEFT * 0.5)
         xa = Text("x", font_size=18, color=TEXT_SEC).next_to(axes.x_axis, DOWN, buff=0.15)
         ya = Text("y", font_size=18, color=TEXT_SEC).next_to(axes.y_axis, LEFT, buff=0.15)
-        self.play(Create(axes), FadeIn(xa), FadeIn(ya), run_time=0.7)
+        self.play(Create(axes), FadeIn(xa), FadeIn(ya), run_time=1.5)
 
         # Spectral locus
         locus_dots = VGroup()
@@ -1853,10 +1853,10 @@ class ChromaticityScene(Scene):
                      font_size=16, color=TEXT_SEC, line_spacing=1.2)
         note.move_to(RIGHT * 4 + DOWN * 1.5)
         self.play(FadeIn(note))
-        self.wait(1.5)
+        self.wait(3.5)
 
         # --- Act 2: Wide Color Gamuts ---
-        self.play(FadeOut(note), run_time=0.4)
+        self.play(FadeOut(note), run_time=1.0)
         wg_title = Text("Modern display gamuts on the same diagram:",
                          font_size=17, color=TEXT_PRI)
         wg_title.move_to(RIGHT * 4 + UP * 0.2)
@@ -1870,8 +1870,8 @@ class ChromaticityScene(Scene):
         bt_tri = Polygon(
             axes.c2p(0.708, 0.292), axes.c2p(0.170, 0.797), axes.c2p(0.131, 0.046),
             color=ACCENT_PINK, stroke_width=2.5, fill_opacity=0)
-        self.play(Create(p3_tri), run_time=0.7)
-        self.play(Create(bt_tri), run_time=0.7)
+        self.play(Create(p3_tri), run_time=1.5)
+        self.play(Create(bt_tri), run_time=1.5)
 
         leg_srgb = Text("■ sRGB     ~35% of visible gamut", font_size=13, color=WHITE)
         leg_p3   = Text("■ P3       ~45% of visible gamut", font_size=13, color=ACCENT_ORANGE)
@@ -1885,8 +1885,8 @@ class ChromaticityScene(Scene):
                          font_size=14, color=TEXT_SEC, line_spacing=1.2)
         cam_note.move_to(RIGHT * 4 + DOWN * 2.5)
         self.play(FadeIn(cam_note))
-        self.wait(3)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(6)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1918,7 +1918,7 @@ class MacAdamEllipsesScene(Scene):
         axes.move_to(LEFT * 2.8 + DOWN * 0.55)
         xa = Text("x", font_size=15, color=TEXT_SEC).next_to(axes.x_axis, DOWN, buff=0.1)
         ya = Text("y", font_size=15, color=TEXT_SEC).next_to(axes.y_axis, LEFT, buff=0.1)
-        self.play(Create(axes), FadeIn(xa), FadeIn(ya), run_time=0.6)
+        self.play(Create(axes), FadeIn(xa), FadeIn(ya), run_time=1.4)
 
         # Spectral locus
         locus_dots = VGroup()
@@ -1970,7 +1970,7 @@ class MacAdamEllipsesScene(Scene):
         axes2.move_to(RIGHT * 3.5 + DOWN * 0.3)
         xa2 = Text("a*", font_size=12, color=TEXT_SEC).next_to(axes2.x_axis, DOWN, buff=0.08)
         ya2 = Text("b*", font_size=12, color=TEXT_SEC).next_to(axes2.y_axis, LEFT, buff=0.08)
-        self.play(Create(axes2), FadeIn(xa2), FadeIn(ya2), run_time=0.5)
+        self.play(Create(axes2), FadeIn(xa2), FadeIn(ya2), run_time=1.2)
 
         # Plot ellipse centers as colored circles in Lab space
         lab_dots = VGroup()
@@ -2002,10 +2002,10 @@ class MacAdamEllipsesScene(Scene):
             font_size=19, color=ACCENT_YELLOW)
         verdict.move_to(verdict_box)
         self.play(FadeIn(verdict_box), FadeIn(verdict))
-        self.wait(2)
+        self.wait(4)
 
         # ── Act 3: Quantified Uniformity — ΔE scatter plot ────────────
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.5)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.2)
         self.play(FadeIn(ch))
 
         scatter_title = Text("Quantifying Non-Uniformity: ΔE Scatter",
@@ -2040,12 +2040,12 @@ class MacAdamEllipsesScene(Scene):
         sc_xl.next_to(sc_axes, DOWN, buff=0.12)
         sc_yl = Text("ΔOKLab ×100", font_size=15, color=TEXT_SEC).rotate(PI / 2)
         sc_yl.next_to(sc_axes, LEFT, buff=0.12)
-        self.play(Create(sc_axes), FadeIn(sc_xl), FadeIn(sc_yl), run_time=0.6)
+        self.play(Create(sc_axes), FadeIn(sc_xl), FadeIn(sc_yl), run_time=1.4)
 
         # Ideal diagonal
         diag = sc_axes.plot(lambda x: x, color=GRID_COL, stroke_width=1.5,
                             x_range=[0, max_val * 1.05])
-        self.play(Create(diag), run_time=0.4)
+        self.play(Create(diag), run_time=1.0)
 
         scatter_dots = VGroup()
         for de76, deok in zip(de76_vals, de_ok_vals):
@@ -2067,8 +2067,8 @@ class MacAdamEllipsesScene(Scene):
         stress_txt.arrange(DOWN, buff=0.15)
         stress_txt.move_to(stress_box)
         self.play(FadeIn(stress_box), FadeIn(stress_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -2097,7 +2097,7 @@ class RGBCubeScene(ThreeDScene):
         for lbl in [rl, gl, bl]:
             self.add_fixed_orientation_mobjects(lbl)
 
-        self.play(Create(axes, run_time=0.7))
+        self.play(Create(axes, run_time=1.5))
         self.play(FadeIn(rl), FadeIn(gl), FadeIn(bl))
 
         # Surface dots
@@ -2118,17 +2118,15 @@ class RGBCubeScene(ThreeDScene):
         self.add_fixed_orientation_mobjects(gray_lbl)
         self.play(Create(gray), FadeIn(gray_lbl))
 
-        self.begin_ambient_camera_rotation(rate=0.12)
-        self.wait(5)
-        self.stop_ambient_camera_rotation()
+        self.move_camera(theta=-42*DEGREES + TAU, run_time=14, rate_func=smooth)
 
         note = Text("RGB: simple for hardware, not for human perception",
                      font_size=22, color=ACCENT_PINK)
         note.to_edge(DOWN, buff=0.4)
         self.add_fixed_in_frame_mobjects(note)
         self.play(FadeIn(note))
-        self.wait(2)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(4)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -2178,17 +2176,15 @@ class HSVCylinderScene(ThreeDScene):
             self.add_fixed_in_frame_mobjects(a)
         self.play(FadeIn(anns))
 
-        self.begin_ambient_camera_rotation(rate=0.15)
-        self.wait(4)
-        self.stop_ambient_camera_rotation()
+        self.move_camera(theta=-35*DEGREES + TAU, run_time=14, rate_func=smooth)
 
         note = Text("HSV separates hue — but \"Value\" ≠ perceived lightness",
                      font_size=20, color=ACCENT_PINK)
         note.to_edge(DOWN, buff=0.3)
         self.add_fixed_in_frame_mobjects(note)
         self.play(FadeOut(anns), FadeIn(note))
-        self.wait(2)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.6)
+        self.wait(4)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.4)
 
         # ── Act 2: HSL and HWB ────────────────────────────────────────
         ch2 = Text("HSL and HWB: Cousins of HSV", font_size=40,
@@ -2238,10 +2234,8 @@ class HSVCylinderScene(ThreeDScene):
         hsl_anns.to_edge(DOWN, buff=0.6)
         self.add_fixed_in_frame_mobjects(hsl_anns)
         self.play(FadeIn(hsl_anns))
-        self.begin_ambient_camera_rotation(rate=0.15)
-        self.wait(3)
-        self.stop_ambient_camera_rotation()
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.6)
+        self.move_camera(theta=-35*DEGREES + TAU, run_time=14, rate_func=smooth)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.2)
 
         # HWB comparison (2D)
         ch3 = Text("HWB  (CSS Color Level 4)", font_size=38,
@@ -2262,7 +2256,7 @@ class HSVCylinderScene(ThreeDScene):
         comparison.move_to(UP * 0.3)
         for line in comparison:
             self.add_fixed_in_frame_mobjects(line)
-            self.play(FadeIn(line), run_time=0.5)
+            self.play(FadeIn(line), run_time=1.2)
 
         hwb_note_box = RoundedRectangle(corner_radius=0.12, width=11.5, height=1.0,
                                          fill_color=PANEL, fill_opacity=0.9,
@@ -2274,8 +2268,8 @@ class HSVCylinderScene(ThreeDScene):
         hwb_note.move_to(hwb_note_box)
         self.add_fixed_in_frame_mobjects(hwb_note_box, hwb_note)
         self.play(FadeIn(hwb_note_box), FadeIn(hwb_note))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -2331,7 +2325,7 @@ class PerceptualProblemsScene(Scene):
         ideal_lbl = Text("ideal: constant", font_size=13, color=ACCENT_GREEN)
         ideal_lbl.next_to(ideal, RIGHT, buff=0.12)
 
-        self.play(Create(axes, run_time=0.5))
+        self.play(Create(axes, run_time=1.2))
         self.play(Create(curve, run_time=1.5))
         self.play(Create(ideal), FadeIn(ideal_lbl))
 
@@ -2351,8 +2345,8 @@ class PerceptualProblemsScene(Scene):
             font_size=22, color=ACCENT_PINK)
         verdict.to_edge(DOWN, buff=0.3)
         self.play(FadeIn(verdict, shift=UP*0.2))
-        self.wait(3)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(6)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -2419,7 +2413,7 @@ class CIELABDerivationScene(Scene):
         lin_lbl = Text("linear\nsegment", font_size=11, color="#888888")
         lin_lbl.move_to(axes.c2p(0.15, 0.45))
 
-        self.play(Create(axes, run_time=0.5))
+        self.play(Create(axes, run_time=1.2))
         self.play(Create(cbrt_plot), FadeIn(cbrt_lbl))
         self.play(Create(f_plot), FadeIn(f_lbl))
         self.play(Create(lin_seg), FadeIn(lin_lbl))
@@ -2439,8 +2433,8 @@ class CIELABDerivationScene(Scene):
         lab_group = VGroup(lab_eq, a_eq, b_eq).arrange(DOWN, buff=0.2, aligned_edge=LEFT)
         lab_group.to_edge(DOWN, buff=0.3)
         self.play(Write(lab_group, run_time=2.5))
-        self.wait(3)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(6)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -2490,21 +2484,19 @@ class CIELABSolidScene(ThreeDScene):
         for lbl in [al, bll, Ll]:
             self.add_fixed_orientation_mobjects(lbl)
 
-        self.play(Create(ax_a), Create(ax_b), Create(ax_L), run_time=0.4)
+        self.play(Create(ax_a), Create(ax_b), Create(ax_L), run_time=1.0)
         self.play(FadeIn(al), FadeIn(bll), FadeIn(Ll))
         self.play(FadeIn(lab_dots, lag_ratio=0.001, run_time=3))
 
-        self.begin_ambient_camera_rotation(rate=0.12)
-        self.wait(5)
-        self.stop_ambient_camera_rotation()
+        self.move_camera(theta=-40*DEGREES + TAU, run_time=14, rate_func=smooth)
 
         note = Text("Notice the tilted, irregular shape — especially near blue",
                      font_size=20, color=ACCENT_PINK)
         note.to_edge(DOWN, buff=0.4)
         self.add_fixed_in_frame_mobjects(note)
         self.play(FadeIn(note))
-        self.wait(2)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(4)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -2582,9 +2574,9 @@ class DeltaEScene(Scene):
         self.play(t_tracker.animate.set_value(1.0), run_time=4.0, rate_func=smooth)
         de_num.remove_updater(update_de)
         thresh_text.remove_updater(update_thresh)
-        self.wait(0.5)
+        self.wait(1.5)
         self.play(*[FadeOut(m) for m in [ref_swatch, ref_lbl, cand_swatch, cand_lbl,
-                                          de_label, de_num, thresh_text]], run_time=0.5)
+                                          de_label, de_num, thresh_text]], run_time=1.2)
 
         # ── Act 2: Formulas ──
         form_title = Text("The math:", font_size=20, color=TEXT_PRI)
@@ -2610,9 +2602,9 @@ class DeltaEScene(Scene):
             font_size=22, color=TEXT_PRI)
         eq00.next_to(eq00_intro, DOWN, buff=0.3)
         self.play(Write(eq00, run_time=2.0))
-        self.wait(1.0)
+        self.wait(2.5)
         self.play(*[FadeOut(m) for m in [form_title, eq76, eq00_intro, eq00]],
-                  run_time=0.4)
+                  run_time=1.0)
 
         # ── Act 3: Engineering tolerance table ──
         tbl_title = Text("Industry tolerance standards:", font_size=20,
@@ -2644,10 +2636,10 @@ class DeltaEScene(Scene):
             font_size=18, color=ACCENT_TEAL)
         eng_note.move_to(eng_box)
         self.play(FadeIn(eng_box), FadeIn(eng_note))
-        self.wait(2)
+        self.wait(4)
 
         # ── Act 4: CIEDE2000 — what each correction term does ─────────
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.5)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.2)
 
         de00_ch = Text("CIEDE2000: Why the Formula Is So Complex",
                        font_size=32, color=ACCENT_YELLOW, weight=BOLD)
@@ -2684,8 +2676,8 @@ class DeltaEScene(Scene):
         rows.arrange(DOWN, aligned_edge=LEFT, buff=0.32)
         rows.move_to(DOWN * 0.3)
         for row in rows:
-            self.play(FadeIn(row, lag_ratio=0.3), run_time=0.5)
-        self.wait(1.5)
+            self.play(FadeIn(row, lag_ratio=0.3), run_time=1.2)
+        self.wait(3.5)
 
         de00_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
                                      fill_color=PANEL, fill_opacity=0.9,
@@ -2700,8 +2692,8 @@ class DeltaEScene(Scene):
         de00_txt.arrange(DOWN, buff=0.08)
         de00_txt.move_to(de00_box)
         self.play(FadeIn(de00_box), FadeIn(de00_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -2777,8 +2769,8 @@ class CIELABProblemsScene(Scene):
                         font_size=22, color=ACCENT_TEAL)
         verdict.to_edge(DOWN, buff=0.3)
         self.play(FadeIn(verdict, shift=UP*0.2))
-        self.wait(3)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(6)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -2807,7 +2799,7 @@ class LChOKLchScene(Scene):
         xl.next_to(plane.x_axis, DOWN, buff=0.08)
         yl = Text("b  (blue↔yellow)", font_size=11, color=TEXT_SEC)
         yl.next_to(plane.y_axis, LEFT, buff=0.08)
-        self.play(Create(plane), FadeIn(xl), FadeIn(yl), run_time=0.6)
+        self.play(Create(plane), FadeIn(xl), FadeIn(yl), run_time=1.4)
 
         # Sample point
         pt_val = np.array([0.62, 0.68])
@@ -2885,7 +2877,7 @@ class LChOKLchScene(Scene):
             bar.move_to(BAR_X + UP * y_off)
             bar_lbl = Text(lbl_str, font_size=11, color=TEXT_SEC)
             bar_lbl.next_to(bar, DOWN, buff=0.06)
-            self.play(FadeIn(bar, lag_ratio=0.004), FadeIn(bar_lbl), run_time=0.6)
+            self.play(FadeIn(bar, lag_ratio=0.004), FadeIn(bar_lbl), run_time=1.4)
             y_off -= 0.85
 
         verdict_box = RoundedRectangle(corner_radius=0.12, width=11, height=0.9,
@@ -2897,8 +2889,8 @@ class LChOKLchScene(Scene):
             font_size=19, color=ACCENT_GREEN)
         verdict.move_to(verdict_box)
         self.play(FadeIn(verdict_box), FadeIn(verdict))
-        self.wait(3)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(6)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -2958,11 +2950,11 @@ class GamutMappingScene(Scene):
         self.play(FadeIn(swatches[0]), FadeIn(labels[0]))
         self.play(GrowArrow(arrow), FadeIn(clip_ann))
         self.play(FadeIn(swatches[1]), FadeIn(labels[1]))
-        self.wait(1.5)
+        self.wait(3.5)
 
         # ── Act 2: OKLch binary search ────────────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         act2_title = Text("OKLch Chroma Reduction: Binary Search",
                           font_size=24, color=ACCENT_GREEN)
@@ -2981,11 +2973,11 @@ class GamutMappingScene(Scene):
         steps_txt.move_to(LEFT * 1.5 + DOWN * 0.3)
         for step in steps_txt:
             self.play(FadeIn(step), run_time=0.35)
-        self.wait(1.0)
+        self.wait(2.5)
 
         # ── Act 3: 3 swatches comparison ─────────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         act3_title = Text("Result: Gamut Mapping vs Clipping",
                           font_size=26, color=ACCENT_GREEN)
@@ -3024,8 +3016,8 @@ class GamutMappingScene(Scene):
             font_size=19, color=ACCENT_GREEN)
         gm_txt.move_to(gm_box)
         self.play(FadeIn(gm_box), FadeIn(gm_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -3076,7 +3068,7 @@ class OKLabDerivationScene(Scene):
             arrows.add(arr)
 
         for i, box in enumerate(boxes):
-            self.play(FadeIn(box, scale=0.85), run_time=0.4)
+            self.play(FadeIn(box, scale=0.85), run_time=1.0)
             if i < len(arrows):
                 self.play(GrowArrow(arrows[i]), run_time=0.2)
 
@@ -3116,10 +3108,10 @@ class OKLabDerivationScene(Scene):
             font_size=16, color=ACCENT_TEAL)
         opt.move_to(opt_box)
         self.play(FadeIn(opt_box), FadeIn(opt))
-        self.wait(2)
+        self.wait(4)
 
         # ── Act 3: IPT — Same architecture, different numbers ─────────
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.5)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.2)
 
         ipt_title = Text("IPT Color Space  (Ebner & Fairchild 1998)",
                          font_size=36, color=ACCENT_PURPLE, weight=BOLD)
@@ -3166,10 +3158,10 @@ class OKLabDerivationScene(Scene):
             font_size=18, color=ACCENT_PURPLE)
         ipt_txt.move_to(ipt_box)
         self.play(FadeIn(ipt_box), FadeIn(ipt_txt))
-        self.wait(2.5)
+        self.wait(5)
 
         # ── Act 4: CAM16 — The ground truth ──────────────────────────
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.5)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.2)
 
         cam_title = Text("CAM16: The Perceptual Ground Truth",
                          font_size=36, color=ACCENT_YELLOW, weight=BOLD)
@@ -3189,7 +3181,7 @@ class OKLabDerivationScene(Scene):
         cam_items.arrange(DOWN, aligned_edge=LEFT, buff=0.32)
         cam_items.move_to(LEFT * 1.0 + UP * 0.2)
         for item in cam_items:
-            self.play(FadeIn(item), run_time=0.5)
+            self.play(FadeIn(item), run_time=1.2)
 
         cam_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.1,
                                     fill_color=PANEL, fill_opacity=0.9,
@@ -3204,10 +3196,10 @@ class OKLabDerivationScene(Scene):
         cam_txt.arrange(DOWN, buff=0.1)
         cam_txt.move_to(cam_box)
         self.play(FadeIn(cam_box), FadeIn(cam_txt))
-        self.wait(2.5)
+        self.wait(5)
 
         # ── Act 5: OKLab's known limitations ─────────────────────────
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.5)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.2)
 
         lim_title = Text("OKLab: Known Limitations", font_size=38,
                          color=MUTED_RED, weight=BOLD)
@@ -3244,8 +3236,8 @@ class OKLabDerivationScene(Scene):
         lim_rows.arrange(DOWN, aligned_edge=LEFT, buff=0.32)
         lim_rows.move_to(DOWN * 0.3)
         for row in lim_rows:
-            self.play(FadeIn(row, lag_ratio=0.2), run_time=0.5)
-        self.wait(1.5)
+            self.play(FadeIn(row, lag_ratio=0.2), run_time=1.2)
+        self.wait(3.5)
 
         lim_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
                                     fill_color=PANEL, fill_opacity=0.9,
@@ -3256,8 +3248,8 @@ class OKLabDerivationScene(Scene):
             font_size=17, color=ACCENT_GREEN)
         lim_txt.move_to(lim_box)
         self.play(FadeIn(lim_box), FadeIn(lim_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -3312,11 +3304,11 @@ class PerceptualPhenomenaScene(Scene):
             font_size=17, color=ACCENT_PINK)
         hk_note.move_to(DOWN * 2.6)
         self.play(FadeIn(hk_note))
-        self.wait(2.0)
+        self.wait(4)
 
         # ── Act 2: Abney effect ───────────────────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         abney_title = Text("The Abney Effect",
                            font_size=28, color=ACCENT_BLUE, weight=BOLD)
@@ -3374,11 +3366,11 @@ class PerceptualPhenomenaScene(Scene):
             font_size=16, color=ACCENT_BLUE)
         abney_note.move_to(RIGHT * 2.5 + DOWN * 0.8)
         self.play(FadeIn(abney_note))
-        self.wait(1.5)
+        self.wait(3.5)
 
         # ── Act 3: Hunt effect ────────────────────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         hunt_title = Text("The Hunt Effect",
                           font_size=28, color=ACCENT_YELLOW, weight=BOLD)
@@ -3403,7 +3395,7 @@ class PerceptualPhenomenaScene(Scene):
         hunt_items.move_to(DOWN * 0.3)
         for item in hunt_items:
             self.play(FadeIn(item), run_time=0.35)
-        self.wait(1.5)
+        self.wait(3.5)
 
         phenom_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
                                        fill_color=PANEL, fill_opacity=0.9,
@@ -3414,8 +3406,8 @@ class PerceptualPhenomenaScene(Scene):
             font_size=17, color=ACCENT_PURPLE)
         phenom_txt.move_to(phenom_box)
         self.play(FadeIn(phenom_box), FadeIn(phenom_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -3457,21 +3449,19 @@ class OKLabSolidScene(ThreeDScene):
         for lbl in [al, bll, Ll]:
             self.add_fixed_orientation_mobjects(lbl)
 
-        self.play(Create(ax_a), Create(ax_b), Create(ax_L), run_time=0.4)
+        self.play(Create(ax_a), Create(ax_b), Create(ax_L), run_time=1.0)
         self.play(FadeIn(al), FadeIn(bll), FadeIn(Ll))
         self.play(FadeIn(ok_dots, lag_ratio=0.001, run_time=3))
 
-        self.begin_ambient_camera_rotation(rate=0.12)
-        self.wait(5)
-        self.stop_ambient_camera_rotation()
+        self.move_camera(theta=-40*DEGREES + TAU, run_time=14, rate_func=smooth)
 
         note = Text("Smoother, more symmetric — perceptually uniform in all directions",
                      font_size=20, color=ACCENT_TEAL)
         note.to_edge(DOWN, buff=0.4)
         self.add_fixed_in_frame_mobjects(note)
         self.play(FadeIn(note))
-        self.wait(2)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(4)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -3486,66 +3476,97 @@ class ColorSpaceComparisonScene(ThreeDScene):
         self.add_fixed_in_frame_mobjects(ch)
         self.play(FadeIn(ch, shift=DOWN*0.2))
 
-        self.set_camera_orientation(phi=60*DEGREES, theta=-45*DEGREES)
+        # phi=75° gives a slight overhead angle to show 3D depth;
+        # theta=90° puts the camera on the +Y axis so the X-axis (along which
+        # the three solids are arranged) runs perfectly left–right in the frame.
+        self.set_camera_orientation(phi=75*DEGREES, theta=90*DEGREES)
 
         pts = generate_gamut_volume(res=8)
         sc_rgb  = 3.0
         sc_lab  = 0.025
         sc_labL = 0.033
         sc_ok   = 5.5
-        offset  = 4.8
 
-        # RGB
+        # ── Auto-fit: measure x half-widths from raw data, then scale ──
+        _rgb_hw = max(abs((s[0] - 0.5) * sc_rgb) for s in pts)
+        _lab_hw = max(abs(srgb_to_cielab(*s)[1] * sc_lab) for s in pts)
+        _ok_hw  = max(abs(linear_srgb_to_oklab(
+                        *srgb_to_linear(np.array(s)))[1] * sc_ok)
+                      for s in pts)
+        max_hw    = max(_rgb_hw, _lab_hw, _ok_hw)
+        GAP       = 0.9                            # gap between solids
+        target_hw = (13.0 - 2 * GAP) / 6          # half-width each solid
+        fit       = target_hw / max_hw             # uniform scale factor
+        offset    = 2 * target_hw + GAP            # centre-to-centre distance
+
+        # ── Build groups centred at origin, then shift to final positions ──
+        # Camera on +Y (theta=90°) ⟹ +X appears LEFT in the frame, so:
+        #   RGB → +offset (left)  ·  CIELAB → 0 (centre)  ·  OKLab → –offset (right)
+
         rgb_grp = VGroup()
         for s in pts:
-            x, y, z = (s - 0.5) * sc_rgb
-            d = Dot3D([x - offset, y, z], radius=0.03, color=rgb_to_hex(s))
+            x, y, z = (s - 0.5) * sc_rgb * fit
+            d = Dot3D([x, y, z], radius=0.03, color=rgb_to_hex(s))
             d.set_opacity(0.75)
             rgb_grp.add(d)
-        rgb_lbl = Text("RGB", font_size=18, color=ACCENT_BLUE, weight=BOLD)
-        rgb_lbl.move_to([-offset, 0, -2.3])
-        self.add_fixed_orientation_mobjects(rgb_lbl)
+        rgb_grp.shift(np.array([+offset, 0, 0]))
 
-        # CIELAB
         lab_grp = VGroup()
         for s in pts:
             L, a, bv = srgb_to_cielab(*s)
-            d = Dot3D([a*sc_lab, bv*sc_lab, (L-50)*sc_labL], radius=0.03,
-                      color=rgb_to_hex(s))
+            d = Dot3D([a*sc_lab*fit, bv*sc_lab*fit, (L-50)*sc_labL*fit],
+                      radius=0.03, color=rgb_to_hex(s))
             d.set_opacity(0.75)
             lab_grp.add(d)
-        lab_lbl = Text("CIELAB", font_size=18, color=ACCENT_PURPLE, weight=BOLD)
-        lab_lbl.move_to([0, 0, -2.3])
-        self.add_fixed_orientation_mobjects(lab_lbl)
+        # lab_grp stays at origin
 
-        # OKLab
         ok_grp = VGroup()
         for s in pts:
             lin = srgb_to_linear(np.array(s))
             L, a, bv = linear_srgb_to_oklab(*lin)
-            d = Dot3D([a*sc_ok + offset, bv*sc_ok, (L-0.5)*sc_ok],
+            d = Dot3D([a*sc_ok*fit, bv*sc_ok*fit, (L-0.5)*sc_ok*fit],
                       radius=0.03, color=rgb_to_hex(s))
             d.set_opacity(0.75)
             ok_grp.add(d)
+        ok_grp.shift(np.array([-offset, 0, 0]))
+
+        # Label z: place below the tallest solid's bottom edge
+        lbl_z = -(max(0.5*sc_rgb, 50*sc_labL, 0.5*sc_ok) * fit + 0.45)
+
+        rgb_lbl = Text("RGB", font_size=18, color=ACCENT_BLUE, weight=BOLD)
+        rgb_lbl.move_to([+offset, 0, lbl_z])
+        self.add_fixed_orientation_mobjects(rgb_lbl)
+
+        lab_lbl = Text("CIELAB", font_size=18, color=ACCENT_PURPLE, weight=BOLD)
+        lab_lbl.move_to([0, 0, lbl_z])
+        self.add_fixed_orientation_mobjects(lab_lbl)
+
         ok_lbl = Text("OKLab", font_size=18, color=ACCENT_TEAL, weight=BOLD)
-        ok_lbl.move_to([offset, 0, -2.3])
+        ok_lbl.move_to([-offset, 0, lbl_z])
         self.add_fixed_orientation_mobjects(ok_lbl)
 
         self.play(FadeIn(rgb_grp, lag_ratio=0.001, run_time=1.5), FadeIn(rgb_lbl))
         self.play(FadeIn(lab_grp, lag_ratio=0.001, run_time=1.5), FadeIn(lab_lbl))
         self.play(FadeIn(ok_grp, lag_ratio=0.001, run_time=1.5), FadeIn(ok_lbl))
 
-        self.begin_ambient_camera_rotation(rate=0.1)
-        self.wait(6)
-        self.stop_ambient_camera_rotation()
+        # Rotate each solid independently around its own Z axis
+        self.play(
+            Rotate(rgb_grp, angle=TAU, axis=np.array([0, 0, 1]),
+                   about_point=np.array([+offset, 0, 0]), rate_func=smooth),
+            Rotate(lab_grp, angle=TAU, axis=np.array([0, 0, 1]),
+                   about_point=ORIGIN, rate_func=smooth),
+            Rotate(ok_grp, angle=TAU, axis=np.array([0, 0, 1]),
+                   about_point=np.array([-offset, 0, 0]), rate_func=smooth),
+            run_time=18,
+        )
 
         note = Text("Same colors, three shapes — OKLab is the most regular",
                      font_size=20, color=ACCENT_GREEN)
         note.to_edge(DOWN, buff=0.4)
         self.add_fixed_in_frame_mobjects(note)
         self.play(FadeIn(note))
-        self.wait(2)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(4)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -3601,8 +3622,8 @@ class GradientComparisonScene(Scene):
                         font_size=22, color=ACCENT_TEAL)
         verdict.to_edge(DOWN, buff=0.3)
         self.play(FadeIn(verdict, shift=UP*0.2))
-        self.wait(3)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(6)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -3650,12 +3671,12 @@ class YCbCrScene(Scene):
         )
         prime_note.arrange(DOWN, aligned_edge=LEFT, buff=0.2)
         prime_note.move_to(RIGHT * 3.0 + DOWN * 0.2)
-        self.play(FadeIn(prime_note, lag_ratio=0.3), run_time=0.8)
-        self.wait(1.5)
+        self.play(FadeIn(prime_note, lag_ratio=0.3), run_time=1.8)
+        self.wait(3.5)
 
         # ── Act 2: Channels visualized ────────────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         chan_title = Text("What the Three Channels Look Like",
                          font_size=26, color=ACCENT_BLUE)
@@ -3699,12 +3720,12 @@ class YCbCrScene(Scene):
             "Cr (red-diff)", ACCENT_ORANGE, RIGHT * 3.5 + DOWN * 0.4)
 
         for bar, lbl in [(y_bar, y_lbl), (cb_bar, cb_lbl), (cr_bar, cr_lbl)]:
-            self.play(FadeIn(bar, lag_ratio=0.001, run_time=0.6), FadeIn(lbl))
-        self.wait(1.5)
+            self.play(FadeIn(bar, lag_ratio=0.001, run_time=1.4), FadeIn(lbl))
+        self.wait(3.5)
 
         # ── Act 3: Chroma subsampling ─────────────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         sub_title = Text("4:2:0 Chroma Subsampling — 50% Bandwidth Saving",
                          font_size=24, color=ACCENT_GREEN)
@@ -3726,7 +3747,7 @@ class YCbCrScene(Scene):
         sub_items.move_to(DOWN * 0.3)
         for item in sub_items:
             self.play(FadeIn(item), run_time=0.3)
-        self.wait(1.5)
+        self.wait(3.5)
 
         ycbcr_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.3,
                                       fill_color=PANEL, fill_opacity=0.9,
@@ -3741,8 +3762,8 @@ class YCbCrScene(Scene):
         ycbcr_txt.arrange(DOWN, buff=0.1)
         ycbcr_txt.move_to(ycbcr_box)
         self.play(FadeIn(ycbcr_box), FadeIn(ycbcr_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -3773,7 +3794,7 @@ class ToneMappingScene(Scene):
         tm_xl.next_to(tm_axes, DOWN, buff=0.12)
         tm_yl = Text("Display output", font_size=14, color=TEXT_SEC).rotate(PI / 2)
         tm_yl.next_to(tm_axes, LEFT, buff=0.10)
-        self.play(Create(tm_axes), FadeIn(tm_xl), FadeIn(tm_yl), run_time=0.6)
+        self.play(Create(tm_axes), FadeIn(tm_xl), FadeIn(tm_yl), run_time=1.4)
 
         # Clipping (naive)
         clip_plot = tm_axes.plot(
@@ -3795,9 +3816,9 @@ class ToneMappingScene(Scene):
         aces_lbl = Text("ACES", font_size=14, color=ACCENT_TEAL)
         aces_lbl.move_to(tm_axes.c2p(2.5, 0.60))
 
-        self.play(Create(clip_plot), FadeIn(clip_lbl), run_time=0.8)
-        self.play(Create(reinhard_plot), FadeIn(reinhard_lbl), run_time=0.8)
-        self.play(Create(aces_plot), FadeIn(aces_lbl), run_time=0.8)
+        self.play(Create(clip_plot), FadeIn(clip_lbl), run_time=1.8)
+        self.play(Create(reinhard_plot), FadeIn(reinhard_lbl), run_time=1.8)
+        self.play(Create(aces_plot), FadeIn(aces_lbl), run_time=1.8)
 
         tm_note = VGroup(
             Text("Clip: destroys highlights", font_size=15, color=MUTED_RED),
@@ -3806,12 +3827,12 @@ class ToneMappingScene(Scene):
         )
         tm_note.arrange(DOWN, aligned_edge=LEFT, buff=0.18)
         tm_note.move_to(RIGHT * 3.8 + DOWN * 0.4)
-        self.play(FadeIn(tm_note, lag_ratio=0.3), run_time=0.8)
-        self.wait(1.5)
+        self.play(FadeIn(tm_note, lag_ratio=0.3), run_time=1.8)
+        self.wait(3.5)
 
         # ── Act 2: Scene-referred vs display-referred ─────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         sr_title = Text("Scene-Referred vs Display-Referred Workflows",
                         font_size=26, color=ACCENT_PURPLE, weight=BOLD)
@@ -3847,7 +3868,7 @@ class ToneMappingScene(Scene):
 
         self.play(FadeIn(sr_left, lag_ratio=0.2), Create(divider),
                   FadeIn(sr_right, lag_ratio=0.2), run_time=1.2)
-        self.wait(1.5)
+        self.wait(3.5)
 
         # ── Act 3: ACES pipeline ──────────────────────────────────────
         aces_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.15,
@@ -3863,8 +3884,8 @@ class ToneMappingScene(Scene):
         aces_txt.arrange(DOWN, buff=0.1)
         aces_txt.move_to(aces_box)
         self.play(FadeIn(aces_box), FadeIn(aces_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -3890,7 +3911,7 @@ class DisplayHDRScene(Scene):
         pq_xl.next_to(pq_axes, DOWN, buff=0.12)
         pq_yl = Text("Luminance (cd/m²)", font_size=13, color=TEXT_SEC).rotate(PI / 2)
         pq_yl.next_to(pq_axes, LEFT, buff=0.10)
-        self.play(Create(pq_axes), FadeIn(pq_xl), FadeIn(pq_yl), run_time=0.6)
+        self.play(Create(pq_axes), FadeIn(pq_xl), FadeIn(pq_yl), run_time=1.4)
 
         pq_plot = pq_axes.plot(
             lambda n: float(np.clip(pq_eotf(n), 0, 10500)),
@@ -3915,12 +3936,12 @@ class DisplayHDRScene(Scene):
         nit_lines.arrange(DOWN, aligned_edge=LEFT, buff=0.32)
         nit_lines.move_to(RIGHT * 2.8 + DOWN * 0.2)
         for line in nit_lines:
-            self.play(FadeIn(line), run_time=0.4)
-        self.wait(1.5)
+            self.play(FadeIn(line), run_time=1.0)
+        self.wait(3.5)
 
         # ── Act 2: 10-bit vs 8-bit banding ───────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         bit_title = Text("10-bit vs 8-bit: Why HDR needs more bits",
                          font_size=26, color=ACCENT_ORANGE)
@@ -3937,11 +3958,11 @@ class DisplayHDRScene(Scene):
         bit_lines.move_to(ORIGIN + DOWN * 0.3)
         for line in bit_lines:
             self.play(FadeIn(line), run_time=0.45)
-        self.wait(1.5)
+        self.wait(3.5)
 
         # ── Act 3: Display technologies + HLG ────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         tech_title = Text("Display Technologies and Transfer Functions",
                           font_size=26, color=ACCENT_TEAL)
@@ -3975,8 +3996,8 @@ class DisplayHDRScene(Scene):
             font_size=18, color=ACCENT_YELLOW)
         hdr_txt.move_to(hdr_box)
         self.play(FadeIn(hdr_box), FadeIn(hdr_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -4026,11 +4047,11 @@ class ICCPipelineScene(Scene):
                        font_size=17, color=ACCENT_YELLOW)
         pcs_ann.next_to(block_objs, DOWN, buff=0.3)
         self.play(FadeIn(pcs_ann))
-        self.wait(1.0)
+        self.wait(2.5)
 
         # ── Act 2: Four rendering intents ────────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         ri_title = Text("The Four Rendering Intents", font_size=28,
                         color=ACCENT_PURPLE, weight=BOLD)
@@ -4073,8 +4094,8 @@ class ICCPipelineScene(Scene):
         icc_txt.arrange(DOWN, buff=0.12)
         icc_txt.move_to(icc_box)
         self.play(FadeIn(icc_box), FadeIn(icc_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -4122,13 +4143,13 @@ class PracticalBlendingScene(Scene):
         lbl_lin = Text("Linear blend (correct)", font_size=17, color=ACCENT_GREEN)
         lbl_lin.move_to(LEFT * 3.5 + DOWN * 1.25)
 
-        self.play(FadeIn(srgb_bar, lag_ratio=0.003), FadeIn(lbl_srgb), run_time=0.8)
-        self.play(FadeIn(lin_bar_blend, lag_ratio=0.003), FadeIn(lbl_lin), run_time=0.8)
-        self.wait(1.5)
+        self.play(FadeIn(srgb_bar, lag_ratio=0.003), FadeIn(lbl_srgb), run_time=1.8)
+        self.play(FadeIn(lin_bar_blend, lag_ratio=0.003), FadeIn(lbl_lin), run_time=1.8)
+        self.wait(3.5)
 
         # ── Act 2: Premultiplied alpha ────────────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         pm_title = Text("Premultiplied Alpha: The Correct Formula",
                         font_size=26, color=ACCENT_ORANGE)
@@ -4150,12 +4171,12 @@ class PracticalBlendingScene(Scene):
         pm_note.move_to(DOWN * 0.8)
         self.play(Write(pm_eq, run_time=1.0))
         for note in pm_note:
-            self.play(FadeIn(note), run_time=0.4)
-        self.wait(1.5)
+            self.play(FadeIn(note), run_time=1.0)
+        self.wait(3.5)
 
         # ── Act 3: CSS color-mix() comparison bars ────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         mix_title = Text("CSS color-mix(): Comparing Blend Spaces",
                          font_size=26, color=ACCENT_TEAL)
@@ -4179,7 +4200,7 @@ class PracticalBlendingScene(Scene):
             bar.move_to(LEFT * 0.5 + DOWN * y_off)
             bar_lbl = Text(method_name, font_size=16, color=col, weight=BOLD)
             bar_lbl.next_to(bar, LEFT, buff=0.35)
-            self.play(FadeIn(bar, lag_ratio=0.003), FadeIn(bar_lbl), run_time=0.5)
+            self.play(FadeIn(bar, lag_ratio=0.003), FadeIn(bar_lbl), run_time=1.2)
             y_off += 0.95
 
         blend_box = RoundedRectangle(corner_radius=0.12, width=11, height=0.85,
@@ -4191,8 +4212,8 @@ class PracticalBlendingScene(Scene):
             font_size=18, color=ACCENT_TEAL)
         blend_txt.move_to(blend_box)
         self.play(FadeIn(blend_box), FadeIn(blend_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -4252,9 +4273,9 @@ class RealWorldScene(Scene):
             m.move_to(wc + r*np.array([np.cos(a), np.sin(a), 0]))
         hl.add_updater(spin)
         self.add(hl)
-        self.wait(4)
+        self.wait(8)
         hl.remove_updater(spin)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -4279,10 +4300,10 @@ class ColorBlindnessScene(Scene):
         ).arrange(DOWN, buff=0.18)
         stats.next_to(ch, DOWN, buff=0.3)
         self.play(FadeIn(stats))
-        self.wait(1.0)
+        self.wait(2.5)
 
         # ── Act 2: Four OKLab wheels ──
-        self.play(FadeOut(stats), run_time=0.4)
+        self.play(FadeOut(stats), run_time=1.0)
 
         wheel_title = Text("How the OKLab color wheel appears under each condition:",
                             font_size=17, color=TEXT_SEC)
@@ -4326,7 +4347,7 @@ class ColorBlindnessScene(Scene):
             lbl.move_to(center + DOWN * 1.55)
             self.play(FadeIn(wheel, lag_ratio=0.001, run_time=1.0), FadeIn(lbl))
 
-        self.wait(1.5)
+        self.wait(3.5)
 
         # ── Act 3: Engineering callout ──
         rules = [
@@ -4345,10 +4366,10 @@ class ColorBlindnessScene(Scene):
         eng_box.to_edge(DOWN, buff=0.22)
         rule_grp.move_to(eng_box)
         self.play(FadeIn(eng_box), FadeIn(rule_grp, lag_ratio=0.3, run_time=1.0))
-        self.wait(2)
+        self.wait(4)
 
         # ── Act 4: WCAG Contrast Math ─────────────────────────────────
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.5)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.2)
 
         wcag_title = Text("WCAG Contrast Ratios", font_size=38,
                           color=ACCENT_TEAL, weight=BOLD)
@@ -4410,8 +4431,8 @@ class ColorBlindnessScene(Scene):
         apca_txt.arrange(DOWN, buff=0.1)
         apca_txt.move_to(apca_box)
         self.play(FadeIn(apca_box), FadeIn(apca_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -4457,7 +4478,7 @@ class PaletteGenerationScene(Scene):
             swatch_row.add(sw)
         swatch_row.arrange(RIGHT, buff=0.1)
         swatch_row.move_to(RIGHT * 2.0 + UP * 0.4)
-        self.play(FadeIn(swatch_row, lag_ratio=0.15), run_time=0.8)
+        self.play(FadeIn(swatch_row, lag_ratio=0.15), run_time=1.8)
 
         pal_info = VGroup(
             Text(f"L = {L_val}  C = {C_val}", font_size=18, color=ACCENT_PURPLE),
@@ -4466,11 +4487,11 @@ class PaletteGenerationScene(Scene):
         pal_info.arrange(DOWN, buff=0.2, aligned_edge=LEFT)
         pal_info.move_to(RIGHT * 2.0 + DOWN * 0.5)
         self.play(FadeIn(pal_info))
-        self.wait(1.5)
+        self.wait(3.5)
 
         # ── Act 2: WCAG-safe palette check ───────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         wcag_title = Text("WCAG Accessibility Check",
                           font_size=26, color=ACCENT_GREEN)
@@ -4500,11 +4521,11 @@ class PaletteGenerationScene(Scene):
         check_rows.arrange(DOWN, aligned_edge=LEFT, buff=0.25)
         check_rows.move_to(DOWN * 0.3)
         self.play(FadeIn(check_rows, lag_ratio=0.2), run_time=1.2)
-        self.wait(1.5)
+        self.wait(3.5)
 
         # ── Act 3: Color harmonies ────────────────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.5)
+                    if m is not ch], run_time=1.2)
 
         harm_title = Text("Color Harmonies in OKLch",
                           font_size=26, color=ACCENT_TEAL)
@@ -4528,7 +4549,7 @@ class PaletteGenerationScene(Scene):
                 sw_row.add(sw)
             sw_row.arrange(RIGHT, buff=0.15)
             sw_row.next_to(lbl, RIGHT, buff=0.5)
-            self.play(FadeIn(sw_row, lag_ratio=0.2), run_time=0.5)
+            self.play(FadeIn(sw_row, lag_ratio=0.2), run_time=1.2)
 
         show_harmony("Complementary  h, h+180°", [0, 180], ACCENT_ORANGE, 1.0)
         show_harmony("Triadic  h, h+120°, h+240°", [0, 120, 240], ACCENT_PURPLE, 0.0)
@@ -4543,8 +4564,8 @@ class PaletteGenerationScene(Scene):
             font_size=18, color=ACCENT_PURPLE)
         harm_txt.move_to(harm_box)
         self.play(FadeIn(harm_box), FadeIn(harm_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -4583,11 +4604,11 @@ class NumericalGotchasScene(Scene):
         g1_code.move_to(DOWN * 0.3)
         for line in g1_code:
             self.play(FadeIn(line), run_time=0.35)
-        self.wait(1.5)
+        self.wait(3.5)
 
         # ── Act 2: Clamping order matters ─────────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.4)
+                    if m is not ch], run_time=1.0)
 
         g2_title = Text("② Clamp in LINEAR space, not gamma-encoded",
                         font_size=22, color=ACCENT_ORANGE, weight=BOLD)
@@ -4604,11 +4625,11 @@ class NumericalGotchasScene(Scene):
         clamping_steps.move_to(DOWN * 0.2)
         for step in clamping_steps:
             self.play(FadeIn(step), run_time=0.45)
-        self.wait(1.5)
+        self.wait(3.5)
 
         # ── Act 3: Gradient accumulation ─────────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.4)
+                    if m is not ch], run_time=1.0)
 
         g3_title = Text("③ Gradient step computation: use endpoints, not midpoints",
                         font_size=20, color=ACCENT_YELLOW, weight=BOLD)
@@ -4629,11 +4650,11 @@ class NumericalGotchasScene(Scene):
         g3_code.move_to(DOWN * 0.2)
         for line in g3_code:
             self.play(FadeIn(line), run_time=0.3)
-        self.wait(1.5)
+        self.wait(3.5)
 
         # ── Act 4: White point scale ──────────────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects
-                    if m is not ch], run_time=0.4)
+                    if m is not ch], run_time=1.0)
 
         g4_title = Text("④ CIELAB white point: Y must be normalized to 1.0",
                         font_size=20, color=ACCENT_PURPLE, weight=BOLD)
@@ -4651,8 +4672,8 @@ class NumericalGotchasScene(Scene):
         g4_lines.arrange(DOWN, aligned_edge=LEFT, buff=0.3)
         g4_lines.move_to(DOWN * 0.2)
         for line in g4_lines:
-            self.play(FadeIn(line), run_time=0.4)
-        self.wait(1.5)
+            self.play(FadeIn(line), run_time=1.0)
+        self.wait(3.5)
 
         final_box = RoundedRectangle(corner_radius=0.12, width=11, height=0.9,
                                       fill_color=PANEL, fill_opacity=0.9,
@@ -4663,8 +4684,8 @@ class NumericalGotchasScene(Scene):
             font_size=17, color=TEXT_PRI)
         final_txt.move_to(final_box)
         self.play(FadeIn(final_box), FadeIn(final_txt))
-        self.wait(3.5)
-        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+        self.wait(7)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -4724,7 +4745,7 @@ class OutroScene(Scene):
                       font_size=24, color=TEXT_PRI)
         final.to_edge(DOWN, buff=0.45)
         self.play(FadeIn(final, shift=UP*0.3))
-        self.wait(3)
+        self.wait(6)
 
         creds = VGroup(
             Text("Based on Björn Ottosson's OKLab  ·  bottosson.github.io",
@@ -4734,5 +4755,5 @@ class OutroScene(Scene):
             Text("Made with Manim Community Edition", font_size=13, color=TEXT_SEC),
         ).arrange(DOWN, buff=0.08).to_edge(DOWN, buff=0.25)
         self.play(FadeOut(final), FadeIn(creds, shift=UP*0.15))
-        self.wait(2.5)
+        self.wait(5)
         self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.5)
