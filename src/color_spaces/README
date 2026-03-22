@@ -1,0 +1,82 @@
+# Color Spaces: From Light to OKLab — Manim Animation
+
+A production-quality Manim CE animation (17 scenes, ~1470 lines) covering the
+complete journey of color science — from electromagnetic radiation and cone
+cells to CIE 1931, RGB, HSV, CIELAB, and Björn Ottosson's OKLab.
+
+## Quick Start
+
+```bash
+pip install manim                          # install Manim Community Edition
+manim -pql color_spaces.py TitleScene      # preview one scene (low quality)
+python render_all.py                       # render all 17 scenes → single video
+```
+
+## All 17 Scenes
+
+| #  | Scene                        | Type | What it shows |
+|----|------------------------------|------|---------------|
+| 1  | `TitleScene`                 | 2D   | OKLab particle field + title card |
+| 2  | `ElectromagneticSpectrumScene` | 2D | Full EM spectrum → visible light zoom |
+| 3  | `HumanVisionScene`           | 2D   | Eye anatomy, S/M/L cone response curves |
+| 4  | `CIE1931Scene`               | 2D   | Color matching experiment, CMF x̄ȳz̄ curves, XYZ formulas |
+| 5  | `ChromaticityScene`          | 2D   | CIE xy chromaticity diagram + sRGB triangle |
+| 6  | `RGBCubeScene`               | **3D** | RGB color cube with 1,352 surface dots, rotation |
+| 7  | `HSVCylinderScene`           | **3D** | HSV cylinder with H/S/V annotations, rotation |
+| 8  | `PerceptualProblemsScene`    | 2D   | HSV hue sweep + OKLab lightness analysis graph |
+| 9  | `CIELABDerivationScene`      | 2D   | f(t) derivation, cube-root plot, L*a*b* formulas |
+| 10 | `CIELABSolidScene`           | **3D** | CIELAB gamut solid (sRGB mapped into L*a*b*), rotation |
+| 11 | `CIELABProblemsScene`        | 2D   | CIELAB vs OKLab hue rings side-by-side |
+| 12 | `OKLabDerivationScene`       | 2D   | Pipeline (sRGB→LMS→cube root→Lab), M₁M₂ optimization |
+| 13 | `OKLabSolidScene`            | **3D** | OKLab gamut solid, rotation |
+| 14 | `ColorSpaceComparisonScene`  | **3D** | RGB · CIELAB · OKLab side-by-side (same colors, 3 shapes) |
+| 15 | `GradientComparisonScene`    | 2D   | 3 color pairs × 3 methods (sRGB/HSV/OKLab) |
+| 16 | `RealWorldScene`             | 2D   | Adoption list + animated OKLab color wheel |
+| 17 | `OutroScene`                 | 2D   | Summary cards, progress arrow, credits |
+
+## Render Options
+
+```bash
+manim -pql color_spaces.py CIELABSolidScene   # fast preview
+manim -pqh --fps 60 color_spaces.py            # 1080p/60fps all scenes
+manim -qk --fps 60 color_spaces.py             # 4K production
+
+python render_all.py --quality l               # all scenes, low quality
+python render_all.py --quality h               # all scenes, 1080p/60fps (default)
+python render_all.py --quality k               # all scenes, 4K
+```
+
+## Color Math Engine
+
+The script includes a complete, self-contained color math engine with:
+
+- **sRGB gamma** — proper IEC 61966-2-1 transfer function (not a simple 2.2 power)
+- **XYZ ↔ sRGB** — IEC 61966-2-1 matrix (D65)
+- **CIELAB** — full f(t) with linear segment below δ³, forward + inverse
+- **OKLab** — Björn Ottosson's exact M₁/M₂ matrices (2021 update)
+- **CIE 1931 CMFs** — Wyman et al. 2013 Gaussian analytic fit
+- **Chromaticity** — spectral locus + sRGB triangle computation
+- **3D gamut surfaces** — sRGB cube face sampling → any target space
+
+All conversions verified with round-trip errors < 10⁻⁶.
+
+## Design Choices
+
+- **Dark theme** — `#0b0e17` background matching Reducible aesthetic
+- **Accent palette** — 7 high-contrast colors for maximum readability
+- **3D solids** — 1,352 surface dots per gamut solid, smooth 5s rotations
+- **Perceptual correctness** — all displayed colors are properly gamma-encoded
+- **Modular** — each scene is self-contained; render any subset independently
+
+## References
+
+- [Björn Ottosson — A perceptual color space for image processing](https://bottosson.github.io/posts/oklab/)
+- [Björn Ottosson — A color picker](https://bottosson.github.io/posts/colorpicker/)
+- [CIE 1931 2° Observer Data](https://cie.co.at/datatable/cie-1931-colour-matching-functions-2-degree-observer)
+- [Wyman et al. 2013 — Simple Analytic Approximations to the CIE XYZ CMFs](https://jcgt.org/published/0002/02/01/)
+- [Manim Community Edition](https://docs.manim.community/)
+- [Reducible (GitHub)](https://github.com/nipunramk/Reducible)
+
+## License
+
+Animation code: MIT. OKLab math: Public Domain (per Björn Ottosson).

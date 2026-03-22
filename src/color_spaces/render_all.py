@@ -13,27 +13,36 @@ from pathlib import Path
 from multiprocessing import Pool, cpu_count
 
 SCENES = [
-    "TitleScene",                    #  1
-    "ElectromagneticSpectrumScene",  #  2  I.    What Is Light?
-    "HumanVisionScene",              #  3  II.   How We See Color
-    "CIE1931Scene",                  #  4  III.  The CIE 1931 Standard
-    "ChromaticityScene",             #  5  IV.   CIE Chromaticity + wide gamuts
-    "MacAdamEllipsesScene",          #  6  V.    MacAdam Ellipses
-    "RGBCubeScene",                  #  7  VI.   The RGB Color Cube
-    "HSVCylinderScene",              #  8  VII.  HSV: Reshaping the Cube
-    "PerceptualProblemsScene",       #  9  VIII. The Perceptual Problem
-    "CIELABDerivationScene",         # 10  IX.   Deriving CIELAB
-    "CIELABSolidScene",              # 11  X.    The CIELAB Color Solid
-    "DeltaEScene",                   # 12  XI.   ΔE: Measuring Color Difference
-    "CIELABProblemsScene",           # 13  XII.  CIELAB's Achilles Heel
-    "LChOKLchScene",                 # 14  XIII. LCh and OKLch
-    "OKLabDerivationScene",          # 15  XIV.  Deriving OKLab
-    "OKLabSolidScene",               # 16  XV.   The OKLab Color Solid
-    "ColorSpaceComparisonScene",     # 17  XVI.  3D Comparison
-    "GradientComparisonScene",       # 18  XVII. Gradient Quality Test (+OKLch)
-    "RealWorldScene",                # 19  XVIII.OKLab in the Wild
-    "ColorBlindnessScene",           # 20  XIX.  Color Blindness & Accessibility
-    "OutroScene",                    # 21
+    "TitleScene",                       #  1
+    "ElectromagneticSpectrumScene",     #  2   I.      What Is Light?
+    "GammaTransferScene",               #  3   III.    Gamma and Transfer Functions
+    "HumanVisionScene",                 #  4   IV.     How We See Color
+    "CIE1931Scene",                     #  5   V.      The CIE 1931 Standard
+    "MetamerismScene",                  #  6   VI.     Metamerism
+    "IlluminantsChromAdaptScene",       #  7   VII.    Illuminants and Chromatic Adaptation
+    "ChromaticityScene",                #  8   VIII.   CIE Chromaticity + wide gamuts
+    "MacAdamEllipsesScene",             #  9   IX.     MacAdam Ellipses
+    "RGBCubeScene",                     # 10   X.      The RGB Color Cube
+    "HSVCylinderScene",                 # 11   XI.     HSV / HSL / HWB
+    "PerceptualProblemsScene",          # 12   XII.    The Perceptual Problem
+    "CIELABDerivationScene",            # 13   XIII.   Deriving CIELAB
+    "CIELABSolidScene",                 # 14   XIV.    The CIELAB Color Solid
+    "DeltaEScene",                      # 15   XV.     ΔE: Measuring Color Difference
+    "CIELABProblemsScene",              # 16   XVI.    CIELAB's Achilles Heel
+    "LChOKLchScene",                    # 17   XVII.   LCh and OKLch
+    "GamutMappingScene",                # 18   XVIII.  Gamut Mapping
+    "OKLabDerivationScene",             # 19   XIX.    Deriving OKLab
+    "OKLabSolidScene",                  # 20   XX.     The OKLab Color Solid
+    "ColorSpaceComparisonScene",        # 21   XXI.    3D Comparison
+    "GradientComparisonScene",          # 22   XXII.   Gradient Quality Test
+    "DisplayHDRScene",                  # 23   XXIII.  Display Technology and HDR
+    "ICCPipelineScene",                 # 24   XXIV.   ICC Profiles and Color Management
+    "PracticalBlendingScene",           # 25   XXV.    Practical Blending Operations
+    "RealWorldScene",                   # 26   XXVI.   OKLab in the Wild
+    "ColorBlindnessScene",              # 27   XXVII.  Color Blindness & Accessibility
+    "PaletteGenerationScene",           # 28   XXVIII. Palette Generation Algorithms
+    "NumericalGotchasScene",            # 29   XXIX.   Numerical Precision & Gotchas
+    "OutroScene",                       # 30
 ]
 
 QUALITY = {
