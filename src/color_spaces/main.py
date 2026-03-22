@@ -605,6 +605,55 @@ def linear_blend(c1_rgb, c2_rgb, t):
     lin_mid = lin1 * (1 - t) + lin2 * t
     return np.clip(linear_to_srgb(np.clip(lin_mid, 0, 1)), 0, 1)
 
+# ── Y'CbCr (BT.709) ──────────────────────────────────────────────────
+def rgb_to_ycbcr_bt709(r, g, b):
+    """sRGB (gamma-encoded) → Y'CbCr full-range, BT.709."""
+    Yp = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    Cb = (b - Yp) / 1.8556
+    Cr = (r - Yp) / 1.5748
+    return Yp, Cb, Cr
+
+def ycbcr_to_rgb_bt709(Yp, Cb, Cr):
+    """Y'CbCr (BT.709) → sRGB (gamma-encoded)."""
+    r = np.clip(Yp + 1.5748 * Cr, 0, 1)
+    g = np.clip(Yp - 0.1873 * Cb - 0.4681 * Cr, 0, 1)
+    b = np.clip(Yp + 1.8556 * Cb, 0, 1)
+    return r, g, b
+
+# ── Tone mapping operators ────────────────────────────────────────────
+def reinhard_tonemap(L, L_white=1.0):
+    """Reinhard (2002) tone map: L_out = L(1+L/Lw²)/(1+L)."""
+    L = np.asarray(L, dtype=float)
+    return L * (1.0 + L / L_white ** 2) / (1.0 + L)
+
+def aces_tonemap(x):
+    """ACES filmic tone mapping approximation (Narkowicz 2015)."""
+    x = np.asarray(x, dtype=float)
+    a, b, c, d, e = 2.51, 0.03, 2.43, 0.59, 0.14
+    return np.clip((x * (a * x + b)) / (x * (c * x + d) + e), 0, 1)
+
+def agx_tonemap(x):
+    """AgX-like S-curve tone mapping (simplified version)."""
+    x = np.asarray(x, dtype=float)
+    x = np.clip(x, 0, None)
+    return x / (x + 0.5)  # simplified sigmoid for visualization
+
+# ── Spectral power distribution → XYZ (already in spd_to_xyz) ────────
+def spectral_reflectance_to_xyz(reflect_fn, illum_fn, wl=None):
+    """Integrate object reflectance × illuminant × CMFs → XYZ."""
+    if wl is None:
+        wl = np.linspace(380, 780, 401)
+    refl  = np.array([float(reflect_fn(w)) for w in wl])
+    illum = np.array([float(illum_fn(w))  for w in wl])
+    xb = np.array([xbar(w) for w in wl])
+    yb = np.array([ybar(w) for w in wl])
+    zb = np.array([zbar(w) for w in wl])
+    k = 1.0 / np.trapz(illum * yb, wl)
+    X = k * np.trapz(refl * illum * xb, wl)
+    Y = k * np.trapz(refl * illum * yb, wl)
+    Z = k * np.trapz(refl * illum * zb, wl)
+    return X, Y, Z
+
 
 # ═══════════════════════════════════════════════════════════════════════
 #  SCENE 01 — TITLE
@@ -764,7 +813,7 @@ class GammaTransferScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("III.  Gamma and Transfer Functions",
+        ch = Text("II.  Gamma and Transfer Functions",
                   font_size=40, color=ACCENT_ORANGE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -924,7 +973,7 @@ class HumanVisionScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("IV.  How We See Color", font_size=44,
+        ch = Text("III.  How We See Color", font_size=44,
                    color=ACCENT_BLUE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -1073,7 +1122,7 @@ class CIE1931Scene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("V.  The CIE 1931 Standard", font_size=44,
+        ch = Text("IV.  The CIE 1931 Standard", font_size=44,
                    color=ACCENT_PURPLE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -1215,7 +1264,143 @@ class CIE1931Scene(Scene):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  SCENE 06 — METAMERISM
+#  SCENE 06 — SPECTRAL RENDERING
+# ═══════════════════════════════════════════════════════════════════════
+class SpectralRenderingScene(Scene):
+    def construct(self):
+        self.camera.background_color = BG
+
+        ch = Text("V.  Spectral Rendering and Physically Based Color",
+                  font_size=36, color=ACCENT_TEAL, weight=BOLD)
+        ch.to_edge(UP, buff=0.45)
+        self.play(FadeIn(ch, shift=DOWN * 0.2))
+
+        intro = Text(
+            "Modern rendering engines work at the wavelength level before converting to XYZ",
+            font_size=19, color=TEXT_SEC)
+        intro.next_to(ch, DOWN, buff=0.3)
+        self.play(FadeIn(intro))
+
+        # ── Act 1: RGB vs spectral rendering pipeline ─────────────────
+        act1_title = Text("RGB Rendering vs Spectral Rendering",
+                          font_size=24, color=ACCENT_TEAL)
+        act1_title.move_to(UP * 1.4)
+        self.play(FadeIn(act1_title))
+
+        # RGB pipeline
+        rgb_blocks = ["Light\n(RGB)", "×  Material\n(RGB albedo)", "=  Pixel\n(RGB)"]
+        rgb_cols = [ACCENT_YELLOW, MUTED_GREEN, ACCENT_ORANGE]
+        rgb_row = VGroup()
+        for lbl, col in zip(rgb_blocks, rgb_cols):
+            b = RoundedRectangle(corner_radius=0.12, width=2.2, height=1.1,
+                                  fill_color=PANEL, fill_opacity=0.9,
+                                  stroke_color=col, stroke_width=1.8)
+            t = Text(lbl, font_size=15, color=col, line_spacing=1.1)
+            t.move_to(b)
+            rgb_row.add(VGroup(b, t))
+        rgb_row.arrange(RIGHT, buff=0.25)
+        rgb_row.move_to(LEFT * 1.5 + UP * 0.35)
+
+        rgb_label = Text("RGB Pipeline:", font_size=17, color=TEXT_SEC)
+        rgb_label.next_to(rgb_row, LEFT, buff=0.3)
+        self.play(FadeIn(rgb_label), FadeIn(rgb_row, lag_ratio=0.3), run_time=0.8)
+
+        rgb_pro = Text("✗ Can't model dispersion, fluorescence, thin-film",
+                       font_size=16, color=MUTED_RED)
+        rgb_pro.next_to(rgb_row, DOWN, buff=0.2)
+        self.play(FadeIn(rgb_pro))
+
+        # Spectral pipeline
+        spec_blocks = ["Light SPD\n(λ)", "×  Reflectance\nSPD(λ)", "∫  CMF\n→XYZ", "→  RGB"]
+        spec_cols = [ACCENT_YELLOW, ACCENT_TEAL, ACCENT_PURPLE, ACCENT_ORANGE]
+        spec_row = VGroup()
+        for lbl, col in zip(spec_blocks, spec_cols):
+            b = RoundedRectangle(corner_radius=0.12, width=1.9, height=1.1,
+                                  fill_color=PANEL, fill_opacity=0.9,
+                                  stroke_color=col, stroke_width=1.8)
+            t = Text(lbl, font_size=14, color=col, line_spacing=1.1)
+            t.move_to(b)
+            spec_row.add(VGroup(b, t))
+        spec_row.arrange(RIGHT, buff=0.2)
+        spec_row.move_to(LEFT * 0.8 + DOWN * 1.0)
+
+        spec_label = Text("Spectral Pipeline:", font_size=17, color=TEXT_SEC)
+        spec_label.next_to(spec_row, LEFT, buff=0.3)
+        self.play(FadeIn(spec_label), FadeIn(spec_row, lag_ratio=0.3), run_time=0.8)
+
+        spec_pro = Text("✓ Correct dispersion · fluorescence · thin-film interference",
+                        font_size=16, color=ACCENT_GREEN)
+        spec_pro.next_to(spec_row, DOWN, buff=0.2)
+        self.play(FadeIn(spec_pro))
+        self.wait(1.5)
+
+        # ── Act 2: The CMF integral is the bridge ─────────────────────
+        self.play(*[FadeOut(m) for m in self.mobjects
+                    if m is not ch], run_time=0.5)
+
+        bridge_title = Text("XYZ is the Correct Integration Target — Not RGB",
+                            font_size=24, color=ACCENT_PURPLE)
+        bridge_title.next_to(ch, DOWN, buff=0.45)
+        self.play(FadeIn(bridge_title))
+
+        # Show spectral locus: compute XYZ for a simple reflectance
+        wls = np.linspace(380, 780, 200)
+        # Green-ish reflectance: Gaussian centered at 540nm
+        def green_reflect(w):
+            return 0.8 * np.exp(-0.5 * ((w - 540) / 40) ** 2)
+
+        refl_vals = np.array([green_reflect(w) for w in wls])
+        d65_vals = np.array([float(illuminant_d65_spd(w)) for w in wls])
+        d65_max = max(d65_vals.max(), 1e-9)
+        refl_axes = Axes(
+            x_range=[380, 780, 100], y_range=[0, 1.3, 0.5],
+            x_length=9, y_length=3.2, tips=False,
+            axis_config={"color": GRID_COL, "stroke_width": 1.5})
+        refl_axes.move_to(DOWN * 0.4)
+        rx_lbl = Text("λ (nm)", font_size=14, color=TEXT_SEC)
+        rx_lbl.next_to(refl_axes, DOWN, buff=0.10)
+        self.play(Create(refl_axes), FadeIn(rx_lbl), run_time=0.5)
+
+        d65_plot = refl_axes.plot_line_graph(
+            wls, d65_vals / d65_max, line_color=ACCENT_YELLOW, stroke_width=2.5,
+            add_vertex_dots=False)
+        refl_plot = refl_axes.plot_line_graph(
+            wls, refl_vals, line_color=ACCENT_GREEN, stroke_width=3,
+            add_vertex_dots=False)
+        prod_plot = refl_axes.plot_line_graph(
+            wls, refl_vals * d65_vals / d65_max, line_color=ACCENT_TEAL,
+            stroke_width=2.5, add_vertex_dots=False)
+
+        d65_lbl = Text("Illuminant SPD", font_size=14, color=ACCENT_YELLOW)
+        d65_lbl.move_to(refl_axes.c2p(680, 1.1))
+        refl_lbl = Text("Reflectance SPD", font_size=14, color=ACCENT_GREEN)
+        refl_lbl.move_to(refl_axes.c2p(600, 0.9))
+        prod_lbl = Text("× Product → integrate with CMFs", font_size=14, color=ACCENT_TEAL)
+        prod_lbl.move_to(refl_axes.c2p(500, 0.65))
+
+        self.play(Create(d65_plot), FadeIn(d65_lbl), run_time=0.8)
+        self.play(Create(refl_plot), FadeIn(refl_lbl), run_time=0.8)
+        self.play(Create(prod_plot), FadeIn(prod_lbl), run_time=0.8)
+
+        spec_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
+                                     fill_color=PANEL, fill_opacity=0.9,
+                                     stroke_color=ACCENT_TEAL, stroke_width=1.5)
+        spec_box.to_edge(DOWN, buff=0.25)
+        spec_txt = VGroup(
+            Text("SPD × reflectance × CMFs → XYZ → sRGB",
+                 font_size=18, color=ACCENT_TEAL),
+            Text("Weta, Pixar, and Chaos use spectral engines for physically correct results",
+                 font_size=16, color=TEXT_PRI),
+        )
+        spec_txt.arrange(DOWN, buff=0.08)
+        spec_txt.move_to(spec_box)
+        self.play(FadeIn(spec_box), FadeIn(spec_txt))
+        self.wait(3.5)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  SCENE 07 — METAMERISM
 # ═══════════════════════════════════════════════════════════════════════
 class MetamerismScene(Scene):
     def construct(self):
@@ -1438,13 +1623,170 @@ class IlluminantsChromAdaptScene(Scene):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  SCENE 08 — CHROMATICITY DIAGRAM
+#  SCENE 10 — COLOR CONSTANCY AND VISUAL ILLUSIONS
+# ═══════════════════════════════════════════════════════════════════════
+class ColorConstancyScene(Scene):
+    def construct(self):
+        self.camera.background_color = BG
+
+        ch = Text("VIII.  Color Constancy and Perceptual Illusions",
+                  font_size=38, color=ACCENT_ORANGE, weight=BOLD)
+        ch.to_edge(UP, buff=0.45)
+        self.play(FadeIn(ch, shift=DOWN * 0.2))
+
+        intro = Text(
+            "The visual system actively estimates illumination and compensates — "
+            "like a real-time Bradford transform",
+            font_size=18, color=TEXT_SEC, line_spacing=1.2)
+        intro.next_to(ch, DOWN, buff=0.3)
+        self.play(FadeIn(intro))
+        self.wait(1.0)
+
+        # ── Act 1: Checker shadow illusion ────────────────────────────
+        self.play(FadeOut(intro), run_time=0.4)
+
+        shadow_title = Text("The Checker Shadow Illusion  (Adelson 1995)",
+                            font_size=26, color=ACCENT_ORANGE, weight=BOLD)
+        shadow_title.next_to(ch, DOWN, buff=0.4)
+        self.play(FadeIn(shadow_title))
+
+        # Draw a simplified checkerboard section showing two patches of identical gray
+        checker_grp = VGroup()
+        cell_size = 0.65
+        rows_c, cols_c = 5, 6
+        base_x, base_y = -2.5, -0.2
+        # Two "identical" patches: one in "shadow", one in "light"
+        light_val = 0.55    # light square
+        dark_val  = 0.27    # dark square
+        shadow_alpha = 0.50  # uniform overlay representing shadow
+
+        # The illusion: square A is a dark checker, square B is a light checker in shadow
+        # Both appear as the same physical gray when shadow overlay applied
+        # A_display = dark_val (no shadow)
+        # B_display = light_val * shadow_alpha ≈ same value
+        A_col = rgb_to_hex([dark_val] * 3)
+        B_raw = light_val * shadow_alpha + dark_val * (1 - shadow_alpha) * 0.3
+        B_col = rgb_to_hex([dark_val + 0.01] * 3)  # nearly identical to A
+
+        for row in range(rows_c):
+            for col in range(cols_c):
+                is_light = (row + col) % 2 == 0
+                # Apply shadow: rows 2+ are "in shadow"
+                in_shadow = (row >= 2) and (col >= 2)
+                if in_shadow:
+                    v = (light_val if is_light else dark_val) * shadow_alpha
+                    v = np.clip(v + 0.15, 0, 1)
+                else:
+                    v = light_val if is_light else dark_val
+                c = Rectangle(width=cell_size, height=cell_size,
+                               fill_color=rgb_to_hex([v, v, v]),
+                               fill_opacity=1, stroke_width=0)
+                c.move_to([base_x + col * cell_size, base_y - row * cell_size, 0])
+                checker_grp.add(c)
+
+        self.play(FadeIn(checker_grp, lag_ratio=0.005, run_time=1.0))
+
+        # Highlight squares A (dark, no shadow) and B (light, in shadow)
+        sq_a_pos = [base_x + 1 * cell_size, base_y - 1 * cell_size, 0]
+        sq_b_pos = [base_x + 4 * cell_size, base_y - 3 * cell_size, 0]
+        sq_a_highlight = Square(side_length=cell_size + 0.1,
+                                stroke_color=ACCENT_ORANGE, stroke_width=3,
+                                fill_opacity=0)
+        sq_a_highlight.move_to(sq_a_pos)
+        sq_b_highlight = Square(side_length=cell_size + 0.1,
+                                stroke_color=ACCENT_TEAL, stroke_width=3,
+                                fill_opacity=0)
+        sq_b_highlight.move_to(sq_b_pos)
+        a_lbl = Text("A", font_size=18, color=ACCENT_ORANGE, weight=BOLD)
+        a_lbl.next_to(sq_a_highlight, UP, buff=0.1)
+        b_lbl = Text("B", font_size=18, color=ACCENT_TEAL, weight=BOLD)
+        b_lbl.next_to(sq_b_highlight, RIGHT, buff=0.1)
+        self.play(FadeIn(sq_a_highlight), FadeIn(a_lbl),
+                  FadeIn(sq_b_highlight), FadeIn(b_lbl))
+
+        # Swatch comparison
+        swatch_row = VGroup()
+        for label, rgb_v, col in [("A", dark_val, ACCENT_ORANGE),
+                                    ("B (in shadow)", dark_val + 0.01, ACCENT_TEAL)]:
+            sw = Rectangle(width=1.4, height=0.8,
+                            fill_color=rgb_to_hex([rgb_v] * 3),
+                            fill_opacity=1, stroke_color=col, stroke_width=2)
+            lbl = Text(label, font_size=15, color=col)
+            lbl.next_to(sw, DOWN, buff=0.1)
+            swatch_row.add(VGroup(sw, lbl))
+        swatch_row.arrange(RIGHT, buff=0.6)
+        swatch_row.move_to(RIGHT * 3.5 + DOWN * 0.2)
+        eq_txt = Text("Same\nphysical gray!", font_size=16, color=TEXT_SEC)
+        eq_txt.move_to(RIGHT * 3.5 + UP * 1.2)
+        self.play(FadeIn(swatch_row), FadeIn(eq_txt))
+
+        # ── Act 2: The Dress ──────────────────────────────────────────
+        self.play(*[FadeOut(m) for m in self.mobjects
+                    if m is not ch], run_time=0.5)
+
+        dress_title = Text('"The Dress" (2015) — Ambiguous Illuminant',
+                           font_size=28, color=ACCENT_PURPLE, weight=BOLD)
+        dress_title.next_to(ch, DOWN, buff=0.4)
+        self.play(FadeIn(dress_title))
+
+        dress_desc = VGroup(
+            Text("Same image → some see white/gold · others see blue/black", font_size=19, color=TEXT_PRI),
+            Text("", font_size=4),
+            Text("The brain disagrees about the illuminant:", font_size=19, color=TEXT_SEC),
+            Text("  Assume daylight (blue cast) → subtract blue → see white/gold",
+                 font_size=18, color=ACCENT_YELLOW),
+            Text("  Assume artificial light (warm cast) → subtract warm → see blue/black",
+                 font_size=18, color=ACCENT_BLUE),
+        )
+        dress_desc.arrange(DOWN, aligned_edge=LEFT, buff=0.22)
+        dress_desc.move_to(UP * 0.3)
+        for line in dress_desc:
+            self.play(FadeIn(line), run_time=0.4)
+
+        # Show two swatch pairs
+        dress_sw = VGroup(
+            Rectangle(width=2.5, height=1.2, fill_color="#b3a68f",
+                       fill_opacity=1, stroke_color=ACCENT_YELLOW, stroke_width=2),
+            Rectangle(width=2.5, height=1.2, fill_color="#4a5b8c",
+                       fill_opacity=1, stroke_color=ACCENT_BLUE, stroke_width=2),
+        )
+        dress_sw.arrange(RIGHT, buff=0.8)
+        dress_sw.move_to(DOWN * 1.8)
+        dress_sw_lbl = VGroup(
+            Text("White/Gold interpretation", font_size=14, color=ACCENT_YELLOW),
+            Text("Blue/Black interpretation", font_size=14, color=ACCENT_BLUE),
+        )
+        for i, lbl in enumerate(dress_sw_lbl):
+            lbl.next_to(dress_sw[i], DOWN, buff=0.1)
+        self.play(FadeIn(dress_sw), FadeIn(dress_sw_lbl))
+        self.wait(1.5)
+
+        # ── Act 3: Connection to Bradford ────────────────────────────
+        constancy_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.3,
+                                          fill_color=PANEL, fill_opacity=0.9,
+                                          stroke_color=ACCENT_ORANGE, stroke_width=1.5)
+        constancy_box.to_edge(DOWN, buff=0.2)
+        constancy_txt = VGroup(
+            Text("Color constancy = the visual system's built-in chromatic adaptation",
+                 font_size=17, color=ACCENT_ORANGE),
+            Text("Bradford transform formalizes exactly this: estimate illuminant, remove its effect",
+                 font_size=17, color=TEXT_PRI),
+        )
+        constancy_txt.arrange(DOWN, buff=0.12)
+        constancy_txt.move_to(constancy_box)
+        self.play(FadeIn(constancy_box), FadeIn(constancy_txt))
+        self.wait(3.5)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  SCENE 11 — CHROMATICITY DIAGRAM
 # ═══════════════════════════════════════════════════════════════════════
 class ChromaticityScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("VIII.  CIE Chromaticity Diagram", font_size=42,
+        ch = Text("IX.  CIE Chromaticity Diagram", font_size=42,
                    color=ACCENT_PURPLE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -1554,7 +1896,7 @@ class MacAdamEllipsesScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("IX.  MacAdam Ellipses  (1942)", font_size=42,
+        ch = Text("X.  MacAdam Ellipses  (1942)", font_size=42,
                    color=ACCENT_YELLOW, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -1735,7 +2077,7 @@ class MacAdamEllipsesScene(Scene):
 class RGBCubeScene(ThreeDScene):
     def construct(self):
         self.camera.background_color = BG
-        ch = Text("X.  The RGB Color Cube", font_size=42,
+        ch = Text("XI.  The RGB Color Cube", font_size=42,
                    color=ACCENT_BLUE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.add_fixed_in_frame_mobjects(ch)
@@ -1795,7 +2137,7 @@ class RGBCubeScene(ThreeDScene):
 class HSVCylinderScene(ThreeDScene):
     def construct(self):
         self.camera.background_color = BG
-        ch = Text("XI.  HSV: Reshaping the Cube", font_size=42,
+        ch = Text("XII.  HSV: Reshaping the Cube", font_size=42,
                    color=ACCENT_ORANGE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.add_fixed_in_frame_mobjects(ch)
@@ -1943,7 +2285,7 @@ class PerceptualProblemsScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("XII.  The Perceptual Problem", font_size=44,
+        ch = Text("XIII.  The Perceptual Problem", font_size=44,
                    color=ACCENT_PINK, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -2020,7 +2362,7 @@ class CIELABDerivationScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("XIII.  Deriving CIELAB  (1976)", font_size=42,
+        ch = Text("XIV.  Deriving CIELAB  (1976)", font_size=42,
                    color=ACCENT_PURPLE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN*0.2))
@@ -2107,7 +2449,7 @@ class CIELABDerivationScene(Scene):
 class CIELABSolidScene(ThreeDScene):
     def construct(self):
         self.camera.background_color = BG
-        ch = Text("XIV.  The CIELAB Color Solid", font_size=42,
+        ch = Text("XV.  The CIELAB Color Solid", font_size=42,
                    color=ACCENT_PURPLE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.add_fixed_in_frame_mobjects(ch)
@@ -2172,7 +2514,7 @@ class DeltaEScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("XV.  ΔE: Measuring Color Difference", font_size=42,
+        ch = Text("XVI.  ΔE: Measuring Color Difference", font_size=42,
                    color=ACCENT_PURPLE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -2302,7 +2644,63 @@ class DeltaEScene(Scene):
             font_size=18, color=ACCENT_TEAL)
         eng_note.move_to(eng_box)
         self.play(FadeIn(eng_box), FadeIn(eng_note))
-        self.wait(3)
+        self.wait(2)
+
+        # ── Act 4: CIEDE2000 — what each correction term does ─────────
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.5)
+
+        de00_ch = Text("CIEDE2000: Why the Formula Is So Complex",
+                       font_size=32, color=ACCENT_YELLOW, weight=BOLD)
+        de00_ch.to_edge(UP, buff=0.45)
+        self.play(FadeIn(de00_ch, shift=DOWN * 0.2))
+
+        corrections = [
+            ("S_L  (lightness weighting)",
+             "JNDs for L are larger near extremes (very dark / very light)",
+             "  → downweight ΔL at L≈0 or L≈100",
+             ACCENT_BLUE),
+            ("S_C  (chroma weighting)",
+             "JNDs grow with chroma — more saturated colors tolerate larger ΔC",
+             "  → downweight ΔC at high chroma",
+             ACCENT_GREEN),
+            ("S_H  (hue weighting)",
+             "Hue sensitivity is chroma-dependent — thin hue slices at low C",
+             "  → downweight ΔH at low chroma",
+             ACCENT_ORANGE),
+            ("R_T  (rotation term)",
+             "CIELAB has a known hue/chroma interaction error in the blue region (~275°)",
+             "  → rotate ΔH/ΔC axes ≈8° for blues to fix it",
+             ACCENT_PINK),
+        ]
+        rows = VGroup()
+        for term, reason, effect, col in corrections:
+            r = VGroup(
+                Text(term, font_size=17, color=col, weight=BOLD),
+                Text(reason, font_size=15, color=TEXT_PRI),
+                Text(effect, font_size=15, color=TEXT_SEC),
+            )
+            r.arrange(DOWN, aligned_edge=LEFT, buff=0.06)
+            rows.add(r)
+        rows.arrange(DOWN, aligned_edge=LEFT, buff=0.32)
+        rows.move_to(DOWN * 0.3)
+        for row in rows:
+            self.play(FadeIn(row, lag_ratio=0.3), run_time=0.5)
+        self.wait(1.5)
+
+        de00_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
+                                     fill_color=PANEL, fill_opacity=0.9,
+                                     stroke_color=ACCENT_YELLOW, stroke_width=1.5)
+        de00_box.to_edge(DOWN, buff=0.25)
+        de00_txt = VGroup(
+            Text("R_T is the 'blue problem fix'  —  connects directly to CIELAB's achilles heel",
+                 font_size=17, color=ACCENT_YELLOW),
+            Text("ΔE2000 ≈ 20% better than ΔE76 on Sharma's 3000-pair dataset",
+                 font_size=17, color=TEXT_PRI),
+        )
+        de00_txt.arrange(DOWN, buff=0.08)
+        de00_txt.move_to(de00_box)
+        self.play(FadeIn(de00_box), FadeIn(de00_txt))
+        self.wait(3.5)
         self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
 
 
@@ -2313,7 +2711,7 @@ class CIELABProblemsScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("XVI.  CIELAB's Achilles Heel", font_size=42,
+        ch = Text("XVII.  CIELAB's Achilles Heel", font_size=42,
                    color=ACCENT_PINK, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN*0.2))
@@ -2390,7 +2788,7 @@ class LChOKLchScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("XVII.  LCh and OKLch: Cylindrical Lab", font_size=42,
+        ch = Text("XVIII.  LCh and OKLch: Cylindrical Lab", font_size=42,
                    color=ACCENT_BLUE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -2510,7 +2908,7 @@ class GamutMappingScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("XVIII.  Gamut Mapping", font_size=44,
+        ch = Text("XIX.  Gamut Mapping", font_size=44,
                   color=ACCENT_PINK, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -2637,7 +3035,7 @@ class OKLabDerivationScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("XIX.  Deriving OKLab  (2020)", font_size=44,
+        ch = Text("XX.  Deriving OKLab  (2020)", font_size=44,
                    color=ACCENT_TEAL, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN*0.2))
@@ -2806,17 +3204,227 @@ class OKLabDerivationScene(Scene):
         cam_txt.arrange(DOWN, buff=0.1)
         cam_txt.move_to(cam_box)
         self.play(FadeIn(cam_box), FadeIn(cam_txt))
+        self.wait(2.5)
+
+        # ── Act 5: OKLab's known limitations ─────────────────────────
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.5)
+
+        lim_title = Text("OKLab: Known Limitations", font_size=38,
+                         color=MUTED_RED, weight=BOLD)
+        lim_title.to_edge(UP, buff=0.45)
+        self.play(FadeIn(lim_title, shift=DOWN * 0.2))
+
+        lim_intro = Text("Credit: Björn Ottosson acknowledges these on his blog",
+                         font_size=18, color=TEXT_SEC)
+        lim_intro.next_to(lim_title, DOWN, buff=0.3)
+        self.play(FadeIn(lim_intro))
+
+        limitations = [
+            ("Fixed viewing condition",
+             "Assumes D65, moderate surround — doesn't adapt to scene luminance like CAM16",
+             ACCENT_ORANGE),
+            ("Helmholtz-Kohlrausch not modeled",
+             "Saturated colors appear brighter than L predicts — OKLab L is unreliable at high C",
+             ACCENT_PINK),
+            ("Implicit gamut boundary",
+             "No analytic formula for the sRGB boundary — must probe by trial conversion",
+             ACCENT_YELLOW),
+            ("Uniformity degrades near boundary",
+             "At very high chroma, perceptual uniformity decreases — works best near sRGB",
+             MUTED_RED),
+        ]
+        lim_rows = VGroup()
+        for heading, desc, col in limitations:
+            row = VGroup(
+                Text("⚠ " + heading, font_size=19, color=col, weight=BOLD),
+                Text(desc, font_size=16, color=TEXT_PRI),
+            )
+            row.arrange(DOWN, aligned_edge=LEFT, buff=0.06)
+            lim_rows.add(row)
+        lim_rows.arrange(DOWN, aligned_edge=LEFT, buff=0.32)
+        lim_rows.move_to(DOWN * 0.3)
+        for row in lim_rows:
+            self.play(FadeIn(row, lag_ratio=0.2), run_time=0.5)
+        self.wait(1.5)
+
+        lim_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
+                                    fill_color=PANEL, fill_opacity=0.9,
+                                    stroke_color=ACCENT_GREEN, stroke_width=1.5)
+        lim_box.to_edge(DOWN, buff=0.25)
+        lim_txt = Text(
+            "For most applications OKLab is the right choice  ·  use CAM16 when viewing conditions vary",
+            font_size=17, color=ACCENT_GREEN)
+        lim_txt.move_to(lim_box)
+        self.play(FadeIn(lim_box), FadeIn(lim_txt))
         self.wait(3.5)
         self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  SCENE 13 — OKLAB 3D COLOR SOLID
+#  SCENE — PERCEPTUAL PHENOMENA THAT BREAK SIMPLE MODELS
+# ═══════════════════════════════════════════════════════════════════════
+class PerceptualPhenomenaScene(Scene):
+    def construct(self):
+        self.camera.background_color = BG
+
+        ch = Text("XXI.  Perceptual Phenomena Beyond OKLab",
+                  font_size=38, color=ACCENT_PURPLE, weight=BOLD)
+        ch.to_edge(UP, buff=0.45)
+        self.play(FadeIn(ch, shift=DOWN * 0.2))
+
+        # ── Act 1: Helmholtz-Kohlrausch effect ────────────────────────
+        hk_title = Text("Helmholtz-Kohlrausch Effect",
+                        font_size=28, color=ACCENT_PINK, weight=BOLD)
+        hk_title.next_to(ch, DOWN, buff=0.4)
+        self.play(FadeIn(hk_title))
+
+        hk_desc = Text(
+            "Saturated colors appear brighter than their luminance would predict",
+            font_size=19, color=TEXT_PRI)
+        hk_desc.next_to(hk_title, DOWN, buff=0.3)
+        self.play(FadeIn(hk_desc))
+
+        # Show two swatches with same OKLab L but different C
+        L_val = 0.60
+        c_low_rgb = oklab_to_hex(L_val, 0.01, 0.01)  # near-achromatic
+        c_hi_rgb = oklab_to_hex(L_val, 0.18, -0.06)   # vivid red-orange
+        c_hi2_rgb = oklab_to_hex(L_val, -0.05, 0.18)  # vivid green-yellow
+
+        sw_group = VGroup()
+        for col, lbl, desc in [
+            (c_low_rgb, "L=0.60, C≈0.01\n(achromatic)", "Appears normal"),
+            (c_hi_rgb,  "L=0.60, C≈0.19\n(vivid red)", "Appears BRIGHTER!"),
+            (c_hi2_rgb, "L=0.60, C≈0.19\n(vivid green)", "Appears BRIGHTER!"),
+        ]:
+            sw = Rectangle(width=2.2, height=1.5, fill_color=col,
+                            fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.5)
+            sw_lbl = Text(lbl, font_size=14, color=TEXT_PRI, line_spacing=1.1)
+            sw_lbl.next_to(sw, DOWN, buff=0.1)
+            sw_desc = Text(desc, font_size=14, color=TEXT_SEC)
+            sw_desc.next_to(sw_lbl, DOWN, buff=0.05)
+            sw_group.add(VGroup(sw, sw_lbl, sw_desc))
+        sw_group.arrange(RIGHT, buff=0.7)
+        sw_group.move_to(DOWN * 0.5)
+        self.play(FadeIn(sw_group, lag_ratio=0.3), run_time=1.0)
+
+        hk_note = Text(
+            "All three have identical OKLab L = 0.60  —  but vivid colors look lighter",
+            font_size=17, color=ACCENT_PINK)
+        hk_note.move_to(DOWN * 2.6)
+        self.play(FadeIn(hk_note))
+        self.wait(2.0)
+
+        # ── Act 2: Abney effect ───────────────────────────────────────
+        self.play(*[FadeOut(m) for m in self.mobjects
+                    if m is not ch], run_time=0.5)
+
+        abney_title = Text("The Abney Effect",
+                           font_size=28, color=ACCENT_BLUE, weight=BOLD)
+        abney_title.next_to(ch, DOWN, buff=0.4)
+        self.play(FadeIn(abney_title))
+
+        abney_desc = Text(
+            "As you desaturate a color toward white, its apparent hue shifts",
+            font_size=19, color=TEXT_PRI)
+        abney_desc.next_to(abney_title, DOWN, buff=0.3)
+        self.play(FadeIn(abney_desc))
+
+        # Show desaturation path: pure blue → white, show hue shift
+        n = 8
+        blue_row = VGroup()
+        for i in range(n):
+            t = i / (n - 1)
+            # Pure blue in OKLab desaturating to white
+            L = 0.40 + t * 0.55
+            C = 0.18 * (1 - t)
+            h = 264  # blue hue angle
+            Lo, ao, bo = oklch_to_oklab(L, C, h)
+            ro, go, bxo = oklab_to_linear_srgb(Lo, ao, bo)
+            col = rgb_to_hex(np.clip(linear_to_srgb(np.clip([ro, go, bxo], 0, 1)), 0, 1))
+            sw = Rectangle(width=1.1, height=0.9, fill_color=col,
+                            fill_opacity=1, stroke_width=0)
+            blue_row.add(sw)
+        blue_row.arrange(RIGHT, buff=0.05)
+        blue_row.move_to(LEFT * 2.0 + DOWN * 0.2)
+        blue_lbl = Text("Blue desaturating → note purple shift", font_size=15, color=ACCENT_BLUE)
+        blue_lbl.next_to(blue_row, DOWN, buff=0.1)
+        self.play(FadeIn(blue_row, lag_ratio=0.1), FadeIn(blue_lbl), run_time=1.0)
+
+        # Yellow desaturation
+        yellow_row = VGroup()
+        for i in range(n):
+            t = i / (n - 1)
+            L = 0.70 + t * 0.25
+            C = 0.15 * (1 - t)
+            h = 100  # yellow
+            Lo, ao, bo = oklch_to_oklab(L, C, h)
+            ro, go, bxo = oklab_to_linear_srgb(Lo, ao, bo)
+            col = rgb_to_hex(np.clip(linear_to_srgb(np.clip([ro, go, bxo], 0, 1)), 0, 1))
+            sw = Rectangle(width=1.1, height=0.9, fill_color=col,
+                            fill_opacity=1, stroke_width=0)
+            yellow_row.add(sw)
+        yellow_row.arrange(RIGHT, buff=0.05)
+        yellow_row.move_to(LEFT * 2.0 + DOWN * 1.6)
+        yellow_lbl = Text("Yellow desaturating → note green shift", font_size=15, color=ACCENT_YELLOW)
+        yellow_lbl.next_to(yellow_row, DOWN, buff=0.1)
+        self.play(FadeIn(yellow_row, lag_ratio=0.1), FadeIn(yellow_lbl), run_time=1.0)
+
+        abney_note = Text(
+            "OKLab improves hue linearity vs CIELAB  —  but Abney effect persists at extremes",
+            font_size=16, color=ACCENT_BLUE)
+        abney_note.move_to(RIGHT * 2.5 + DOWN * 0.8)
+        self.play(FadeIn(abney_note))
+        self.wait(1.5)
+
+        # ── Act 3: Hunt effect ────────────────────────────────────────
+        self.play(*[FadeOut(m) for m in self.mobjects
+                    if m is not ch], run_time=0.5)
+
+        hunt_title = Text("The Hunt Effect",
+                          font_size=28, color=ACCENT_YELLOW, weight=BOLD)
+        hunt_title.next_to(ch, DOWN, buff=0.4)
+        self.play(FadeIn(hunt_title))
+
+        hunt_items = VGroup(
+            Text("Colors appear MORE colorful at HIGHER luminance levels", font_size=20,
+                 color=ACCENT_YELLOW),
+            Text("Why: cone responses compress differently at different adaptation levels",
+                 font_size=18, color=TEXT_PRI),
+            Text("A vivid red outdoors (10000 lux) appears more saturated than indoors (500 lux)",
+                 font_size=18, color=TEXT_SEC),
+            Text("", font_size=6),
+            Text("This is why CAM16 models viewing conditions:", font_size=18, color=ACCENT_TEAL),
+            Text("  L_A (adapting luminance) · F_L (luminance factor) · surround type",
+                 font_size=17, color=ACCENT_TEAL),
+            Text("OKLab assumes fixed viewing condition → approximate for extreme luminances",
+                 font_size=18, color=MUTED_RED),
+        )
+        hunt_items.arrange(DOWN, aligned_edge=LEFT, buff=0.25)
+        hunt_items.move_to(DOWN * 0.3)
+        for item in hunt_items:
+            self.play(FadeIn(item), run_time=0.35)
+        self.wait(1.5)
+
+        phenom_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
+                                       fill_color=PANEL, fill_opacity=0.9,
+                                       stroke_color=ACCENT_PURPLE, stroke_width=1.5)
+        phenom_box.to_edge(DOWN, buff=0.25)
+        phenom_txt = Text(
+            "These phenomena explain why no simple 3D formula perfectly models human color perception",
+            font_size=17, color=ACCENT_PURPLE)
+        phenom_txt.move_to(phenom_box)
+        self.play(FadeIn(phenom_box), FadeIn(phenom_txt))
+        self.wait(3.5)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  SCENE — OKLAB 3D COLOR SOLID
 # ═══════════════════════════════════════════════════════════════════════
 class OKLabSolidScene(ThreeDScene):
     def construct(self):
         self.camera.background_color = BG
-        ch = Text("XX.  The OKLab Color Solid", font_size=42,
+        ch = Text("XXII.  The OKLab Color Solid", font_size=42,
                    color=ACCENT_TEAL, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.add_fixed_in_frame_mobjects(ch)
@@ -2872,7 +3480,7 @@ class OKLabSolidScene(ThreeDScene):
 class ColorSpaceComparisonScene(ThreeDScene):
     def construct(self):
         self.camera.background_color = BG
-        ch = Text("XXI.  3D Comparison: RGB · CIELAB · OKLab", font_size=38,
+        ch = Text("XXIII.  3D Comparison: RGB · CIELAB · OKLab", font_size=38,
                    color=ACCENT_GREEN, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.add_fixed_in_frame_mobjects(ch)
@@ -2947,7 +3555,7 @@ class GradientComparisonScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("XXII.  Gradient Quality Test", font_size=42,
+        ch = Text("XXIV.  Gradient Quality Test", font_size=42,
                    color=ACCENT_GREEN, weight=BOLD)
         ch.to_edge(UP, buff=0.4)
         self.play(FadeIn(ch, shift=DOWN*0.2))
@@ -2998,13 +3606,275 @@ class GradientComparisonScene(Scene):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  SCENE 23 — DISPLAY TECHNOLOGY AND HDR
+#  SCENE — Y'CbCr AND CHROMA SUBSAMPLING
+# ═══════════════════════════════════════════════════════════════════════
+class YCbCrScene(Scene):
+    def construct(self):
+        self.camera.background_color = BG
+
+        ch = Text("XXV.  Y'CbCr and Chroma Subsampling",
+                  font_size=40, color=ACCENT_BLUE, weight=BOLD)
+        ch.to_edge(UP, buff=0.45)
+        self.play(FadeIn(ch, shift=DOWN * 0.2))
+
+        intro = Text(
+            "Nearly all video (H.264, H.265, AV1) stores color as Y'CbCr, not RGB",
+            font_size=19, color=TEXT_SEC)
+        intro.next_to(ch, DOWN, buff=0.3)
+        self.play(FadeIn(intro))
+
+        # ── Act 1: The equations ──────────────────────────────────────
+        eq_title = Text("BT.709 Y'CbCr Equations  (prime = gamma-encoded)",
+                        font_size=22, color=ACCENT_BLUE)
+        eq_title.move_to(UP * 1.2)
+        self.play(FadeIn(eq_title))
+
+        eqs = VGroup(
+            MathTex(r"Y' = 0.2126\,R' + 0.7152\,G' + 0.0722\,B'",
+                    font_size=24, color=TEXT_PRI),
+            MathTex(r"C_b = \frac{B' - Y'}{1.8556}",
+                    font_size=24, color=ACCENT_TEAL),
+            MathTex(r"C_r = \frac{R' - Y'}{1.5748}",
+                    font_size=24, color=ACCENT_ORANGE),
+        )
+        eqs.arrange(DOWN, buff=0.35)
+        eqs.move_to(LEFT * 2.5 + DOWN * 0.2)
+        self.play(Write(eqs, run_time=1.5))
+
+        # Note: primes mean gamma-encoded
+        prime_note = VGroup(
+            Text("R'G'B' = sRGB (gamma-encoded)", font_size=16, color=TEXT_SEC),
+            Text("Y' = luma (not luminance!)", font_size=16, color=ACCENT_YELLOW),
+            Text("Cb = blue-difference chroma", font_size=16, color=ACCENT_TEAL),
+            Text("Cr = red-difference chroma", font_size=16, color=ACCENT_ORANGE),
+        )
+        prime_note.arrange(DOWN, aligned_edge=LEFT, buff=0.2)
+        prime_note.move_to(RIGHT * 3.0 + DOWN * 0.2)
+        self.play(FadeIn(prime_note, lag_ratio=0.3), run_time=0.8)
+        self.wait(1.5)
+
+        # ── Act 2: Channels visualized ────────────────────────────────
+        self.play(*[FadeOut(m) for m in self.mobjects
+                    if m is not ch], run_time=0.5)
+
+        chan_title = Text("What the Three Channels Look Like",
+                         font_size=26, color=ACCENT_BLUE)
+        chan_title.next_to(ch, DOWN, buff=0.4)
+        self.play(FadeIn(chan_title))
+
+        # Generate a simple test image (gradient) and show Y'/Cb/Cr channels
+        n = 32
+        img_w, img_h = 2.8, 1.6
+        cell_w = img_w / n
+        cell_h = img_h / n
+
+        def make_image_bar(channel_fn, label, col, y_pos):
+            bar = VGroup()
+            for i in range(n):
+                for j in range(n):
+                    r = i / (n - 1)
+                    g = j / (n - 1)
+                    b = 0.4
+                    v = channel_fn(r, g, b)
+                    v_disp = np.clip((v + 0.5) * 0.7 + 0.15, 0, 1)
+                    c = Rectangle(width=cell_w + 0.01, height=cell_h + 0.01,
+                                   fill_color=rgb_to_hex([v_disp, v_disp, v_disp]),
+                                   fill_opacity=1, stroke_width=0)
+                    c.move_to([-img_w / 2 + (i + 0.5) * cell_w,
+                                -img_h / 2 + (j + 0.5) * cell_h, 0])
+                    bar.add(c)
+            bar.move_to(y_pos)
+            lbl = Text(label, font_size=15, color=col)
+            lbl.next_to(bar, DOWN, buff=0.1)
+            return bar, lbl
+
+        y_bar, y_lbl = make_image_bar(
+            lambda r, g, b: 0.2126 * r + 0.7152 * g + 0.0722 * b,
+            "Y' (luma)", ACCENT_YELLOW, LEFT * 3.5 + DOWN * 0.4)
+        cb_bar, cb_lbl = make_image_bar(
+            lambda r, g, b: (b - (0.2126*r + 0.7152*g + 0.0722*b)) / 1.8556,
+            "Cb (blue-diff)", ACCENT_TEAL, ORIGIN + DOWN * 0.4)
+        cr_bar, cr_lbl = make_image_bar(
+            lambda r, g, b: (r - (0.2126*r + 0.7152*g + 0.0722*b)) / 1.5748,
+            "Cr (red-diff)", ACCENT_ORANGE, RIGHT * 3.5 + DOWN * 0.4)
+
+        for bar, lbl in [(y_bar, y_lbl), (cb_bar, cb_lbl), (cr_bar, cr_lbl)]:
+            self.play(FadeIn(bar, lag_ratio=0.001, run_time=0.6), FadeIn(lbl))
+        self.wait(1.5)
+
+        # ── Act 3: Chroma subsampling ─────────────────────────────────
+        self.play(*[FadeOut(m) for m in self.mobjects
+                    if m is not ch], run_time=0.5)
+
+        sub_title = Text("4:2:0 Chroma Subsampling — 50% Bandwidth Saving",
+                         font_size=24, color=ACCENT_GREEN)
+        sub_title.next_to(ch, DOWN, buff=0.4)
+        self.play(FadeIn(sub_title))
+
+        sub_items = VGroup(
+            Text("Human vision: high spatial resolution for luminance,", font_size=19, color=TEXT_PRI),
+            Text("  LOW resolution for color (chroma).", font_size=19, color=TEXT_PRI),
+            Text("", font_size=4),
+            Text("4:2:0 subsampling:", font_size=20, color=ACCENT_BLUE, weight=BOLD),
+            Text("  Y' — full resolution  (1 sample per pixel)", font_size=18, color=ACCENT_YELLOW),
+            Text("  Cb — quarter resolution  (1 sample per 2×2 block)", font_size=18, color=ACCENT_TEAL),
+            Text("  Cr — quarter resolution  (1 sample per 2×2 block)", font_size=18, color=ACCENT_ORANGE),
+            Text("", font_size=4),
+            Text("Result: 3 planes at ½×½ color → 50% data vs 4:4:4 RGB", font_size=19, color=ACCENT_GREEN),
+        )
+        sub_items.arrange(DOWN, aligned_edge=LEFT, buff=0.2)
+        sub_items.move_to(DOWN * 0.3)
+        for item in sub_items:
+            self.play(FadeIn(item), run_time=0.3)
+        self.wait(1.5)
+
+        ycbcr_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.3,
+                                      fill_color=PANEL, fill_opacity=0.9,
+                                      stroke_color=ACCENT_BLUE, stroke_width=1.5)
+        ycbcr_box.to_edge(DOWN, buff=0.2)
+        ycbcr_txt = VGroup(
+            Text("Y'CbCr connects directly to gamma (primes) and opponent process (Cb≈blue-yellow, Cr≈red-green)",
+                 font_size=16, color=ACCENT_BLUE),
+            Text("BT.709 matrix for HD/web · BT.2020 matrix for 4K/HDR — different coefficients!",
+                 font_size=16, color=TEXT_PRI),
+        )
+        ycbcr_txt.arrange(DOWN, buff=0.1)
+        ycbcr_txt.move_to(ycbcr_box)
+        self.play(FadeIn(ycbcr_box), FadeIn(ycbcr_txt))
+        self.wait(3.5)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  SCENE — TONE MAPPING AND SCENE-REFERRED WORKFLOWS
+# ═══════════════════════════════════════════════════════════════════════
+class ToneMappingScene(Scene):
+    def construct(self):
+        self.camera.background_color = BG
+
+        ch = Text("XXVI.  Tone Mapping and Scene-Referred Workflows",
+                  font_size=36, color=ACCENT_ORANGE, weight=BOLD)
+        ch.to_edge(UP, buff=0.45)
+        self.play(FadeIn(ch, shift=DOWN * 0.2))
+
+        # ── Act 1: The problem — HDR scene → SDR display ──────────────
+        problem_title = Text("Fitting HDR Scene Content onto an SDR Display",
+                             font_size=24, color=ACCENT_ORANGE)
+        problem_title.next_to(ch, DOWN, buff=0.4)
+        self.play(FadeIn(problem_title))
+
+        tm_axes = Axes(
+            x_range=[0, 4, 1], y_range=[0, 1.1, 0.5],
+            x_length=7, y_length=4.0, tips=False,
+            axis_config={"color": GRID_COL, "stroke_width": 1.5,
+                         "include_numbers": True, "font_size": 14})
+        tm_axes.move_to(LEFT * 1.8 + DOWN * 0.6)
+        tm_xl = Text("Scene luminance (relative)", font_size=14, color=TEXT_SEC)
+        tm_xl.next_to(tm_axes, DOWN, buff=0.12)
+        tm_yl = Text("Display output", font_size=14, color=TEXT_SEC).rotate(PI / 2)
+        tm_yl.next_to(tm_axes, LEFT, buff=0.10)
+        self.play(Create(tm_axes), FadeIn(tm_xl), FadeIn(tm_yl), run_time=0.6)
+
+        # Clipping (naive)
+        clip_plot = tm_axes.plot(
+            lambda x: min(x / 1.0, 1.0), color=MUTED_RED, stroke_width=3,
+            x_range=[0, 4, 0.01])
+        # Reinhard
+        reinhard_plot = tm_axes.plot(
+            lambda x: float(reinhard_tonemap(x / 1.0, L_white=2.0)),
+            color=ACCENT_YELLOW, stroke_width=3, x_range=[0.001, 4, 0.01])
+        # ACES
+        aces_plot = tm_axes.plot(
+            lambda x: float(aces_tonemap(x * 0.6)),
+            color=ACCENT_TEAL, stroke_width=3, x_range=[0, 4, 0.01])
+
+        clip_lbl = Text("Clip", font_size=14, color=MUTED_RED)
+        clip_lbl.move_to(tm_axes.c2p(1.6, 0.75))
+        reinhard_lbl = Text("Reinhard", font_size=14, color=ACCENT_YELLOW)
+        reinhard_lbl.move_to(tm_axes.c2p(3.0, 0.78))
+        aces_lbl = Text("ACES", font_size=14, color=ACCENT_TEAL)
+        aces_lbl.move_to(tm_axes.c2p(2.5, 0.60))
+
+        self.play(Create(clip_plot), FadeIn(clip_lbl), run_time=0.8)
+        self.play(Create(reinhard_plot), FadeIn(reinhard_lbl), run_time=0.8)
+        self.play(Create(aces_plot), FadeIn(aces_lbl), run_time=0.8)
+
+        tm_note = VGroup(
+            Text("Clip: destroys highlights", font_size=15, color=MUTED_RED),
+            Text("Reinhard: smooth but desaturates", font_size=15, color=ACCENT_YELLOW),
+            Text("ACES: filmic S-curve (cinema standard)", font_size=15, color=ACCENT_TEAL),
+        )
+        tm_note.arrange(DOWN, aligned_edge=LEFT, buff=0.18)
+        tm_note.move_to(RIGHT * 3.8 + DOWN * 0.4)
+        self.play(FadeIn(tm_note, lag_ratio=0.3), run_time=0.8)
+        self.wait(1.5)
+
+        # ── Act 2: Scene-referred vs display-referred ─────────────────
+        self.play(*[FadeOut(m) for m in self.mobjects
+                    if m is not ch], run_time=0.5)
+
+        sr_title = Text("Scene-Referred vs Display-Referred Workflows",
+                        font_size=26, color=ACCENT_PURPLE, weight=BOLD)
+        sr_title.next_to(ch, DOWN, buff=0.4)
+        self.play(FadeIn(sr_title))
+
+        # Two-column comparison
+        sr_left = VGroup(
+            Text("SCENE-REFERRED", font_size=20, color=ACCENT_TEAL, weight=BOLD),
+            Text("VFX / Film / ACES", font_size=16, color=TEXT_SEC),
+            Text("• Linear light, physical units", font_size=17, color=TEXT_PRI),
+            Text("• Unbounded (0–∞)", font_size=17, color=TEXT_PRI),
+            Text("• 16-bit half-float (OpenEXR)", font_size=17, color=TEXT_PRI),
+            Text("• Tone map / grade at output", font_size=17, color=TEXT_PRI),
+            Text("• ACES IDT → RRT → ODT pipeline", font_size=17, color=TEXT_PRI),
+        )
+        sr_left.arrange(DOWN, aligned_edge=LEFT, buff=0.22)
+        sr_left.move_to(LEFT * 3.2 + DOWN * 0.2)
+
+        sr_right = VGroup(
+            Text("DISPLAY-REFERRED", font_size=20, color=ACCENT_ORANGE, weight=BOLD),
+            Text("Web / UI / Photography", font_size=16, color=TEXT_SEC),
+            Text("• sRGB gamma-encoded", font_size=17, color=TEXT_PRI),
+            Text("• Clamped [0, 1]", font_size=17, color=TEXT_PRI),
+            Text("• 8-bit per channel (PNG/JPEG)", font_size=17, color=TEXT_PRI),
+            Text("• Already tone-mapped", font_size=17, color=TEXT_PRI),
+            Text("• Camera does it for you (JPEG)", font_size=17, color=TEXT_PRI),
+        )
+        sr_right.arrange(DOWN, aligned_edge=LEFT, buff=0.22)
+        sr_right.move_to(RIGHT * 2.5 + DOWN * 0.2)
+
+        divider = Line(UP * 2.8, DOWN * 2.8, color=GRID_COL, stroke_width=1.5)
+
+        self.play(FadeIn(sr_left, lag_ratio=0.2), Create(divider),
+                  FadeIn(sr_right, lag_ratio=0.2), run_time=1.2)
+        self.wait(1.5)
+
+        # ── Act 3: ACES pipeline ──────────────────────────────────────
+        aces_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.15,
+                                     fill_color=PANEL, fill_opacity=0.9,
+                                     stroke_color=ACCENT_ORANGE, stroke_width=1.5)
+        aces_box.to_edge(DOWN, buff=0.2)
+        aces_txt = VGroup(
+            Text("ACES = Academy Color Encoding System  ·  cinema standard since 2014",
+                 font_size=17, color=ACCENT_ORANGE),
+            Text("Tone mapping = luminance compression  ·  gamut mapping = chroma compression",
+                 font_size=17, color=TEXT_PRI),
+        )
+        aces_txt.arrange(DOWN, buff=0.1)
+        aces_txt.move_to(aces_box)
+        self.play(FadeIn(aces_box), FadeIn(aces_txt))
+        self.wait(3.5)
+        self.play(*[FadeOut(m) for m in self.mobjects], run_time=0.8)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  SCENE — DISPLAY TECHNOLOGY AND HDR
 # ═══════════════════════════════════════════════════════════════════════
 class DisplayHDRScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("XXIII.  Display Technology and HDR",
+        ch = Text("XXVII.  Display Technology and HDR",
                   font_size=40, color=ACCENT_YELLOW, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -3116,7 +3986,7 @@ class ICCPipelineScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("XXIV.  ICC Profiles and Color Management",
+        ch = Text("XXVIII.  ICC Profiles and Color Management",
                   font_size=38, color=ACCENT_PURPLE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -3214,7 +4084,7 @@ class PracticalBlendingScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("XXV.  Practical Blending Operations",
+        ch = Text("XXIX.  Practical Blending Operations",
                   font_size=40, color=ACCENT_TEAL, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -3332,7 +4202,7 @@ class RealWorldScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("XXVI.  OKLab in the Wild", font_size=42,
+        ch = Text("XXX.  OKLab in the Wild", font_size=42,
                    color=ACCENT_ORANGE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN*0.2))
@@ -3394,7 +4264,7 @@ class ColorBlindnessScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("XXVII.  Color Blindness: Engineering for Accessibility",
+        ch = Text("XXXI.  Color Blindness: Engineering for Accessibility",
                    font_size=36, color=ACCENT_PINK, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -3551,7 +4421,7 @@ class PaletteGenerationScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("XXVIII.  Palette Generation Algorithms",
+        ch = Text("XXXII.  Palette Generation Algorithms",
                   font_size=38, color=ACCENT_PURPLE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -3684,7 +4554,7 @@ class NumericalGotchasScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        ch = Text("XXIX.  Numerical Precision & Implementation Gotchas",
+        ch = Text("XXXIII.  Numerical Precision & Implementation Gotchas",
                   font_size=34, color=MUTED_RED, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))

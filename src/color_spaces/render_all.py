@@ -18,31 +18,36 @@ SCENES = [
     "GammaTransferScene",               #  3   III.    Gamma and Transfer Functions
     "HumanVisionScene",                 #  4   IV.     How We See Color
     "CIE1931Scene",                     #  5   V.      The CIE 1931 Standard
-    "MetamerismScene",                  #  6   VI.     Metamerism
-    "IlluminantsChromAdaptScene",       #  7   VII.    Illuminants and Chromatic Adaptation
-    "ChromaticityScene",                #  8   VIII.   CIE Chromaticity + wide gamuts
-    "MacAdamEllipsesScene",             #  9   IX.     MacAdam Ellipses
-    "RGBCubeScene",                     # 10   X.      The RGB Color Cube
-    "HSVCylinderScene",                 # 11   XI.     HSV / HSL / HWB
-    "PerceptualProblemsScene",          # 12   XII.    The Perceptual Problem
-    "CIELABDerivationScene",            # 13   XIII.   Deriving CIELAB
-    "CIELABSolidScene",                 # 14   XIV.    The CIELAB Color Solid
-    "DeltaEScene",                      # 15   XV.     ΔE: Measuring Color Difference
-    "CIELABProblemsScene",              # 16   XVI.    CIELAB's Achilles Heel
-    "LChOKLchScene",                    # 17   XVII.   LCh and OKLch
-    "GamutMappingScene",                # 18   XVIII.  Gamut Mapping
-    "OKLabDerivationScene",             # 19   XIX.    Deriving OKLab
-    "OKLabSolidScene",                  # 20   XX.     The OKLab Color Solid
-    "ColorSpaceComparisonScene",        # 21   XXI.    3D Comparison
-    "GradientComparisonScene",          # 22   XXII.   Gradient Quality Test
-    "DisplayHDRScene",                  # 23   XXIII.  Display Technology and HDR
-    "ICCPipelineScene",                 # 24   XXIV.   ICC Profiles and Color Management
-    "PracticalBlendingScene",           # 25   XXV.    Practical Blending Operations
-    "RealWorldScene",                   # 26   XXVI.   OKLab in the Wild
-    "ColorBlindnessScene",              # 27   XXVII.  Color Blindness & Accessibility
-    "PaletteGenerationScene",           # 28   XXVIII. Palette Generation Algorithms
-    "NumericalGotchasScene",            # 29   XXIX.   Numerical Precision & Gotchas
-    "OutroScene",                       # 30
+    "SpectralRenderingScene",           #  6   VI.     Spectral Rendering
+    "MetamerismScene",                  #  7   VII.    Metamerism
+    "IlluminantsChromAdaptScene",       #  8   VIII.   Illuminants and Chromatic Adaptation
+    "ColorConstancyScene",              #  9   IX.     Color Constancy and Illusions
+    "ChromaticityScene",                # 10   X.      CIE Chromaticity + wide gamuts
+    "MacAdamEllipsesScene",             # 11   XI.     MacAdam Ellipses
+    "RGBCubeScene",                     # 12   XII.    The RGB Color Cube
+    "HSVCylinderScene",                 # 13   XIII.   HSV / HSL / HWB
+    "PerceptualProblemsScene",          # 14   XIV.    The Perceptual Problem
+    "CIELABDerivationScene",            # 15   XV.     Deriving CIELAB
+    "CIELABSolidScene",                 # 16   XVI.    The CIELAB Color Solid
+    "DeltaEScene",                      # 17   XVII.   ΔE: Measuring Color Difference
+    "CIELABProblemsScene",              # 18   XVIII.  CIELAB's Achilles Heel
+    "LChOKLchScene",                    # 19   XIX.    LCh and OKLch
+    "GamutMappingScene",                # 20   XX.     Gamut Mapping
+    "OKLabDerivationScene",             # 21   XXI.    Deriving OKLab
+    "PerceptualPhenomenaScene",         # 22   XXII.   Perceptual Phenomena
+    "OKLabSolidScene",                  # 23   XXIII.  The OKLab Color Solid
+    "ColorSpaceComparisonScene",        # 24   XXIV.   3D Comparison
+    "GradientComparisonScene",          # 25   XXV.    Gradient Quality Test
+    "YCbCrScene",                       # 26   XXVI.   Y'CbCr and Chroma Subsampling
+    "ToneMappingScene",                 # 27   XXVII.  Tone Mapping and Scene-Referred
+    "DisplayHDRScene",                  # 28   XXVIII. Display Technology and HDR
+    "ICCPipelineScene",                 # 29   XXIX.   ICC Profiles and Color Management
+    "PracticalBlendingScene",           # 30   XXX.    Practical Blending Operations
+    "RealWorldScene",                   # 31   XXXI.   OKLab in the Wild
+    "ColorBlindnessScene",              # 32   XXXII.  Color Blindness & Accessibility
+    "PaletteGenerationScene",           # 33   XXXIII. Palette Generation Algorithms
+    "NumericalGotchasScene",            # 34   XXXIV.  Numerical Precision & Gotchas
+    "OutroScene",                       # 35
 ]
 
 QUALITY = {
@@ -96,8 +101,8 @@ def main():
     # Render all scenes in parallel
     tasks = [(i, scene, flags, src) for i, scene in enumerate(SCENES)]
 
-    with Pool(processes=workers) as pool:
-        results = pool.map(render_scene, tasks)
+    # with Pool(processes=workers) as pool:
+    #     results = pool.map(render_scene, tasks)
 
     t_render = time.time() - t_start
     print(f"\n  Render time: {t_render:.1f}s "
@@ -105,19 +110,24 @@ def main():
           f"{t_render/60:.1f} min total)")
 
     # Collect rendered files in scene order
-    video_dir = Path(f"media/videos/color_spaces/{folder}")
-    rendered = []
-    for idx, scene, rc in sorted(results, key=lambda x: x[0]):
-        if rc != 0:
-            continue
-        candidates = sorted(video_dir.glob(f"{scene}.*"),
-                           key=os.path.getmtime, reverse=True)
-        if candidates:
-            rendered.append(candidates[0])
+    video_dir = Path(f"media/videos/main/{folder}")
 
-    if not rendered:
-        print("\n  No scenes rendered successfully.")
-        return
+    rendered = [video_dir / f"{s}.mp4" for s in SCENES]
+
+    print(rendered)
+
+    # rendered = []
+    # for idx, scene, rc in sorted(results, key=lambda x: x[0]):
+    #     if rc != 0:
+    #         continue
+    #     candidates = sorted(video_dir.glob(f"{scene}.*"),
+    #                        key=os.path.getmtime, reverse=True)
+    #     if candidates:
+    #         rendered.append(candidates[0])
+    #
+    # if not rendered:
+    #     print("\n  No scenes rendered successfully.")
+    #     return
 
     # Concatenate
     print(f"\n{'='*62}")
