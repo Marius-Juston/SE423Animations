@@ -24,21 +24,22 @@ from colorsys import hsv_to_rgb, rgb_to_hsv
 # ═══════════════════════════════════════════════════════════════════════
 #  GLOBAL PALETTE  (dark-theme, Reducible-inspired)
 # ═══════════════════════════════════════════════════════════════════════
-BG             = "#0b0e17"
-PANEL          = "#111827"
-ACCENT_BLUE    = "#58c4dd"
-ACCENT_TEAL    = "#5ce1e6"
-ACCENT_PINK    = "#ff6b9d"
-ACCENT_PURPLE  = "#b388ff"
-ACCENT_ORANGE  = "#ffab40"
-ACCENT_YELLOW  = "#ffee58"
-ACCENT_GREEN   = "#69f0ae"
-TEXT_PRI       = "#e8eaf6"
-TEXT_SEC       = "#9fa8da"
-GRID_COL       = "#1e2640"
-MUTED_RED      = "#ef5350"
-MUTED_GREEN    = "#66bb6a"
-MUTED_BLUE     = "#42a5f5"
+BG = "#0b0e17"
+PANEL = "#111827"
+ACCENT_BLUE = "#58c4dd"
+ACCENT_TEAL = "#5ce1e6"
+ACCENT_PINK = "#ff6b9d"
+ACCENT_PURPLE = "#b388ff"
+ACCENT_ORANGE = "#ffab40"
+ACCENT_YELLOW = "#ffee58"
+ACCENT_GREEN = "#69f0ae"
+TEXT_PRI = "#e8eaf6"
+TEXT_SEC = "#9fa8da"
+GRID_COL = "#1e2640"
+MUTED_RED = "#ef5350"
+MUTED_GREEN = "#66bb6a"
+MUTED_BLUE = "#42a5f5"
+
 
 # ═══════════════════════════════════════════════════════════════════════
 #  COLOR MATH ENGINE
@@ -50,32 +51,38 @@ def srgb_to_linear(c):
     return np.where(c <= 0.04045, c / 12.92,
                     ((c + 0.055) / 1.055) ** 2.4)
 
+
 def linear_to_srgb(c):
     c = np.asarray(c, dtype=float)
     return np.where(c <= 0.0031308, 12.92 * c,
                     1.055 * np.power(np.clip(c, 0, None), 1.0 / 2.4) - 0.055)
 
+
 # ── XYZ ↔ linear sRGB (D65) ────────────────────────────────────────
 M_XYZ_TO_LRGB = np.array([
-    [ 3.2404542, -1.5371385, -0.4985314],
-    [-0.9692660,  1.8760108,  0.0415560],
-    [ 0.0556434, -0.2040259,  1.0572252],
+    [3.2404542, -1.5371385, -0.4985314],
+    [-0.9692660, 1.8760108, 0.0415560],
+    [0.0556434, -0.2040259, 1.0572252],
 ])
 M_LRGB_TO_XYZ = np.linalg.inv(M_XYZ_TO_LRGB)
+
 
 def xyz_to_srgb(X, Y, Z):
     """XYZ (D65, Y=1 white) → sRGB [0,1] clamped."""
     v = M_XYZ_TO_LRGB @ np.array([X, Y, Z])
     return np.clip(linear_to_srgb(np.clip(v, 0, None)), 0, 1)
 
+
 # ── CIELAB ──────────────────────────────────────────────────────────
 Xn, Yn, Zn = 0.95047, 1.00000, 1.08883  # D65 white point
+
 
 def _f_lab(t):
     delta = 6.0 / 29.0
     t = np.clip(t, 1e-10, None)
     return np.where(t > delta ** 3, np.cbrt(t),
                     t / (3 * delta ** 2) + 4.0 / 29.0)
+
 
 def xyz_to_cielab(X, Y, Z):
     fx = _f_lab(X / Xn)
@@ -86,10 +93,12 @@ def xyz_to_cielab(X, Y, Z):
     b = 200.0 * (fy - fz)
     return L, a, b
 
+
 def srgb_to_cielab(r, g, b):
     lin = srgb_to_linear(np.array([r, g, b]))
     XYZ = M_LRGB_TO_XYZ @ lin
     return xyz_to_cielab(*XYZ)
+
 
 def cielab_to_xyz(L, a, b):
     """Inverse CIELAB → XYZ."""
@@ -97,12 +106,15 @@ def cielab_to_xyz(L, a, b):
     fy = (L + 16.0) / 116.0
     fx = a / 500.0 + fy
     fz = fy - b / 200.0
+
     def inv_f(t):
-        return t**3 if t > delta else (t - 4.0/29.0) * 3 * delta**2
+        return t ** 3 if t > delta else (t - 4.0 / 29.0) * 3 * delta ** 2
+
     X = Xn * inv_f(fx)
     Y = Yn * inv_f(fy)
     Z = Zn * inv_f(fz)
     return X, Y, Z
+
 
 # ── OKLab ───────────────────────────────────────────────────────────
 def linear_srgb_to_oklab(r, g, b):
@@ -112,62 +124,83 @@ def linear_srgb_to_oklab(r, g, b):
     l_ = np.cbrt(np.clip(l, 0, None))
     m_ = np.cbrt(np.clip(m, 0, None))
     s_ = np.cbrt(np.clip(s, 0, None))
-    L  =  0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_
-    A  =  1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_
-    B  =  0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_
+    L = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_
+    A = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_
+    B = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_
     return L, A, B
+
 
 def oklab_to_linear_srgb(L, a, b):
     l_ = L + 0.3963377774 * a + 0.2158037573 * b
     m_ = L - 0.1055613458 * a - 0.0638541728 * b
     s_ = L - 0.0894841775 * a - 1.2914855480 * b
-    l = l_ ** 3;  m = m_ ** 3;  s = s_ ** 3
+    l = l_ ** 3;
+    m = m_ ** 3;
+    s = s_ ** 3
     r = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s
     g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s
     bx = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s
     return r, g, bx
 
+
 def srgb_to_oklab(r, g, b):
     lin = srgb_to_linear(np.array([r, g, b]))
     return linear_srgb_to_oklab(*lin)
+
 
 # ── Helpers ─────────────────────────────────────────────────────────
 def rgb_to_hex(rgb):
     r, g, b = [int(np.clip(x, 0, 1) * 255) for x in rgb]
     return f"#{r:02x}{g:02x}{b:02x}"
 
+
 def oklab_to_hex(L, a, b):
     r, g, bx = oklab_to_linear_srgb(L, a, b)
     return rgb_to_hex(linear_to_srgb(np.clip([r, g, bx], 0, 1)))
 
+
 def wavelength_to_rgb(wl):
     """Attempt to map visible wavelength (nm) → sRGB."""
     gamma = 0.8
-    if   380 <= wl < 440: R, G, B = -(wl-440)/(440-380), 0, 1
-    elif 440 <= wl < 490: R, G, B = 0, (wl-440)/(490-440), 1
-    elif 490 <= wl < 510: R, G, B = 0, 1, -(wl-510)/(510-490)
-    elif 510 <= wl < 580: R, G, B = (wl-510)/(580-510), 1, 0
-    elif 580 <= wl < 645: R, G, B = 1, -(wl-645)/(645-580), 0
-    elif 645 <= wl <= 780: R, G, B = 1, 0, 0
-    else: R, G, B = 0, 0, 0
-    if 380 <= wl < 420:   f = 0.3 + 0.7 * (wl - 380) / 40
-    elif 700 < wl <= 780: f = 0.3 + 0.7 * (780 - wl) / 80
-    else:                 f = 1.0
-    return np.array([f * abs(R)**gamma, f * abs(G)**gamma, f * abs(B)**gamma])
+    if 380 <= wl < 440:
+        R, G, B = -(wl - 440) / (440 - 380), 0, 1
+    elif 440 <= wl < 490:
+        R, G, B = 0, (wl - 440) / (490 - 440), 1
+    elif 490 <= wl < 510:
+        R, G, B = 0, 1, -(wl - 510) / (510 - 490)
+    elif 510 <= wl < 580:
+        R, G, B = (wl - 510) / (580 - 510), 1, 0
+    elif 580 <= wl < 645:
+        R, G, B = 1, -(wl - 645) / (645 - 580), 0
+    elif 645 <= wl <= 780:
+        R, G, B = 1, 0, 0
+    else:
+        R, G, B = 0, 0, 0
+    if 380 <= wl < 420:
+        f = 0.3 + 0.7 * (wl - 380) / 40
+    elif 700 < wl <= 780:
+        f = 0.3 + 0.7 * (780 - wl) / 80
+    else:
+        f = 1.0
+    return np.array([f * abs(R) ** gamma, f * abs(G) ** gamma, f * abs(B) ** gamma])
+
 
 # ── CIE 1931 CMF approximation (Wyman et al. 2013 Gaussian fit) ───
 def xbar(w):
-    return (1.056 * np.exp(-0.5 * ((w - 599.8) / 37.9)**2)
-          + 0.362 * np.exp(-0.5 * ((w - 442.0) / 16.0)**2)
-          - 0.065 * np.exp(-0.5 * ((w - 501.1) / 20.4)**2))
+    return (1.056 * np.exp(-0.5 * ((w - 599.8) / 37.9) ** 2)
+            + 0.362 * np.exp(-0.5 * ((w - 442.0) / 16.0) ** 2)
+            - 0.065 * np.exp(-0.5 * ((w - 501.1) / 20.4) ** 2))
+
 
 def ybar(w):
-    return (0.821 * np.exp(-0.5 * ((w - 568.8) / 46.9)**2)
-          + 0.286 * np.exp(-0.5 * ((w - 530.9) / 16.3)**2))
+    return (0.821 * np.exp(-0.5 * ((w - 568.8) / 46.9) ** 2)
+            + 0.286 * np.exp(-0.5 * ((w - 530.9) / 16.3) ** 2))
+
 
 def zbar(w):
-    return (1.217 * np.exp(-0.5 * ((w - 437.0) / 11.8)**2)
-          + 0.681 * np.exp(-0.5 * ((w - 459.0) / 26.0)**2))
+    return (1.217 * np.exp(-0.5 * ((w - 437.0) / 11.8) ** 2)
+            + 0.681 * np.exp(-0.5 * ((w - 459.0) / 26.0) ** 2))
+
 
 # ── Gamut surface generators ───────────────────────────────────────
 def generate_gamut_surface(res=16):
@@ -178,10 +211,11 @@ def generate_gamut_surface(res=16):
         for g in vals:
             for b in vals:
                 if np.isclose(r, 0) or np.isclose(r, 1) or \
-                   np.isclose(g, 0) or np.isclose(g, 1) or \
-                   np.isclose(b, 0) or np.isclose(b, 1):
+                        np.isclose(g, 0) or np.isclose(g, 1) or \
+                        np.isclose(b, 0) or np.isclose(b, 1):
                     pts.append([r, g, b])
     return np.array(pts)
+
 
 def generate_gamut_volume(res=10):
     pts = []
@@ -191,21 +225,26 @@ def generate_gamut_volume(res=10):
                 pts.append([r, g, b])
     return np.array(pts)
 
+
 # ── Blend functions ────────────────────────────────────────────────
 def srgb_blend(c1, c2, t):
     return np.clip(np.array(c1) * (1 - t) + np.array(c2) * t, 0, 1)
+
 
 def hsv_blend_fn(c1, c2, t):
     h1, s1, v1 = rgb_to_hsv(*c1)
     h2, s2, v2 = rgb_to_hsv(*c2)
     dh = h2 - h1
     if abs(dh) > 0.5:
-        if dh > 0: h1 += 1
-        else:      h2 += 1
+        if dh > 0:
+            h1 += 1
+        else:
+            h2 += 1
     h = ((h1 + t * (h2 - h1)) % 1.0)
     s = s1 + t * (s2 - s1)
     v = v1 + t * (v2 - v1)
     return np.array(hsv_to_rgb(h, s, v))
+
 
 def oklab_blend_fn(c1, c2, t):
     lin1 = srgb_to_linear(np.array(c1))
@@ -217,6 +256,7 @@ def oklab_blend_fn(c1, c2, t):
     b = b1 + t * (b2 - b1)
     ro, go, bo = oklab_to_linear_srgb(L, a, b)
     return np.clip(linear_to_srgb(np.clip([ro, go, bo], 0, 1)), 0, 1)
+
 
 def make_gradient_bar(blend_fn, c1_rgb, c2_rgb, n=80, width=9.5, height=0.5):
     bar = VGroup()
@@ -231,28 +271,33 @@ def make_gradient_bar(blend_fn, c1_rgb, c2_rgb, n=80, width=9.5, height=0.5):
         bar.add(rect)
     return bar
 
+
 # ── LCh / OKLch (cylindrical representations) ──────────────────────
 def cielab_to_lch(L, a, b):
     """CIELAB (L*, a*, b*) → LCh (L*, C*, h°).  h in [0, 360)."""
-    C = np.sqrt(a**2 + b**2)
+    C = np.sqrt(a ** 2 + b ** 2)
     h = np.degrees(np.arctan2(b, a)) % 360
     return L, C, h
+
 
 def lch_to_cielab(L, C, h_deg):
     """LCh → CIELAB."""
     h = np.radians(h_deg)
     return L, C * np.cos(h), C * np.sin(h)
 
+
 def oklab_to_oklch(L, a, b):
     """OKLab → OKLch (L, C, h°).  h in [0, 360)."""
-    C = np.sqrt(a**2 + b**2)
+    C = np.sqrt(a ** 2 + b ** 2)
     h = np.degrees(np.arctan2(b, a)) % 360
     return L, C, h
+
 
 def oklch_to_oklab(L, C, h_deg):
     """OKLch → OKLab."""
     h = np.radians(h_deg)
     return L, C * np.cos(h), C * np.sin(h)
+
 
 def oklch_blend_fn(c1, c2, t):
     """Blend two sRGB colors through OKLch (short-arc hue interpolation)."""
@@ -272,109 +317,126 @@ def oklch_blend_fn(c1, c2, t):
     ro, go, bxo = oklab_to_linear_srgb(Lo, ao, bo)
     return np.clip(linear_to_srgb(np.clip([ro, go, bxo], 0, 1)), 0, 1)
 
+
 # ── ΔE color difference ────────────────────────────────────────────
 def delta_e76(lab1, lab2):
     """CIE76 Euclidean distance in CIELAB.  lab1, lab2: (L*, a*, b*) tuples."""
-    return float(np.sqrt(sum((a - b)**2 for a, b in zip(lab1, lab2))))
+    return float(np.sqrt(sum((a - b) ** 2 for a, b in zip(lab1, lab2))))
+
 
 def delta_e2000(lab1, lab2, kL=1, kC=1, kH=1):
     """CIEDE2000 color difference (Sharma et al. 2005)."""
     L1, a1, b1 = lab1
     L2, a2, b2 = lab2
-    C1 = np.sqrt(a1**2 + b1**2)
-    C2 = np.sqrt(a2**2 + b2**2)
+    C1 = np.sqrt(a1 ** 2 + b1 ** 2)
+    C2 = np.sqrt(a2 ** 2 + b2 ** 2)
     C_avg = (C1 + C2) / 2.0
-    C_avg7 = C_avg**7
-    G = 0.5 * (1 - np.sqrt(C_avg7 / (C_avg7 + 25**7)))
-    a1p = a1 * (1 + G);  a2p = a2 * (1 + G)
-    C1p = np.sqrt(a1p**2 + b1**2)
-    C2p = np.sqrt(a2p**2 + b2**2)
+    C_avg7 = C_avg ** 7
+    G = 0.5 * (1 - np.sqrt(C_avg7 / (C_avg7 + 25 ** 7)))
+    a1p = a1 * (1 + G);
+    a2p = a2 * (1 + G)
+    C1p = np.sqrt(a1p ** 2 + b1 ** 2)
+    C2p = np.sqrt(a2p ** 2 + b2 ** 2)
+
     def hp(ap, bv):
         if ap == 0 and bv == 0: return 0.0
         return np.degrees(np.arctan2(bv, ap)) % 360
-    h1p = hp(a1p, b1);  h2p = hp(a2p, b2)
-    dLp = L2 - L1;  dCp = C2p - C1p
-    if C1p * C2p == 0:          dhp = 0.0
-    elif abs(h2p - h1p) <= 180: dhp = h2p - h1p
-    elif h2p - h1p > 180:       dhp = h2p - h1p - 360
-    else:                        dhp = h2p - h1p + 360
+
+    h1p = hp(a1p, b1);
+    h2p = hp(a2p, b2)
+    dLp = L2 - L1;
+    dCp = C2p - C1p
+    if C1p * C2p == 0:
+        dhp = 0.0
+    elif abs(h2p - h1p) <= 180:
+        dhp = h2p - h1p
+    elif h2p - h1p > 180:
+        dhp = h2p - h1p - 360
+    else:
+        dhp = h2p - h1p + 360
     dHp = 2 * np.sqrt(C1p * C2p) * np.sin(np.radians(dhp / 2))
     Lbar = (L1 + L2) / 2
     Cbar_p = (C1p + C2p) / 2
-    if C1p * C2p == 0:          hbar_p = h1p + h2p
-    elif abs(h1p - h2p) <= 180: hbar_p = (h1p + h2p) / 2
-    elif h1p + h2p < 360:       hbar_p = (h1p + h2p + 360) / 2
-    else:                        hbar_p = (h1p + h2p - 360) / 2
+    if C1p * C2p == 0:
+        hbar_p = h1p + h2p
+    elif abs(h1p - h2p) <= 180:
+        hbar_p = (h1p + h2p) / 2
+    elif h1p + h2p < 360:
+        hbar_p = (h1p + h2p + 360) / 2
+    else:
+        hbar_p = (h1p + h2p - 360) / 2
     T = (1 - 0.17 * np.cos(np.radians(hbar_p - 30))
-           + 0.24 * np.cos(np.radians(2 * hbar_p))
-           + 0.32 * np.cos(np.radians(3 * hbar_p + 6))
-           - 0.20 * np.cos(np.radians(4 * hbar_p - 63)))
-    SL = 1 + 0.015 * (Lbar - 50)**2 / np.sqrt(20 + (Lbar - 50)**2)
+         + 0.24 * np.cos(np.radians(2 * hbar_p))
+         + 0.32 * np.cos(np.radians(3 * hbar_p + 6))
+         - 0.20 * np.cos(np.radians(4 * hbar_p - 63)))
+    SL = 1 + 0.015 * (Lbar - 50) ** 2 / np.sqrt(20 + (Lbar - 50) ** 2)
     SC = 1 + 0.045 * Cbar_p
     SH = 1 + 0.015 * Cbar_p * T
-    Cbar7 = Cbar_p**7
-    RC = 2 * np.sqrt(Cbar7 / (Cbar7 + 25**7))
-    d_theta = 30 * np.exp(-((hbar_p - 275) / 25)**2)
+    Cbar7 = Cbar_p ** 7
+    RC = 2 * np.sqrt(Cbar7 / (Cbar7 + 25 ** 7))
+    d_theta = 30 * np.exp(-((hbar_p - 275) / 25) ** 2)
     RT = -np.sin(np.radians(2 * d_theta)) * RC
     return float(np.sqrt(
-        (dLp / (kL * SL))**2 + (dCp / (kC * SC))**2 + (dHp / (kH * SH))**2
+        (dLp / (kL * SL)) ** 2 + (dCp / (kC * SC)) ** 2 + (dHp / (kH * SH)) ** 2
         + RT * (dCp / (kC * SC)) * (dHp / (kH * SH))))
+
 
 # ── MacAdam 1942 ellipses (25 JND loci, Brown & MacAdam 1949) ────────
 # Format: (x_chrom, y_chrom, semi_minor, semi_major, angle_deg_from_x_axis)
 MACADAM_ELLIPSES = [
-    (0.160, 0.057, 0.0030, 0.0085,  62.5),
-    (0.187, 0.118, 0.0027, 0.0102,  77.0),
-    (0.253, 0.125, 0.0021, 0.0076,  55.5),
-    (0.150, 0.680, 0.0048, 0.0198,   8.0),
-    (0.131, 0.521, 0.0039, 0.0158,  11.0),
-    (0.212, 0.550, 0.0068, 0.0295,  26.0),
-    (0.258, 0.450, 0.0062, 0.0201,  30.0),
-    (0.152, 0.365, 0.0032, 0.0196,   4.0),
-    (0.280, 0.385, 0.0048, 0.0184,  30.0),
-    (0.380, 0.498, 0.0080, 0.0307,  41.0),
-    (0.160, 0.200, 0.0023, 0.0100,  34.5),
-    (0.228, 0.250, 0.0032, 0.0143,  44.0),
-    (0.305, 0.323, 0.0040, 0.0136,  50.0),
-    (0.385, 0.393, 0.0043, 0.0151,  36.0),
-    (0.472, 0.399, 0.0058, 0.0159,  38.0),
-    (0.527, 0.350, 0.0079, 0.0183,  68.0),
-    (0.475, 0.300, 0.0058, 0.0141,  47.0),
-    (0.510, 0.236, 0.0040, 0.0104,  60.0),
-    (0.596, 0.283, 0.0063, 0.0134,  68.0),
-    (0.344, 0.284, 0.0037, 0.0118,  48.0),
-    (0.390, 0.237, 0.0039, 0.0101,  53.0),
-    (0.441, 0.198, 0.0044, 0.0103,  60.0),
-    (0.278, 0.223, 0.0027, 0.0082,  37.0),
-    (0.240, 0.290, 0.0028, 0.0092,  44.0),
-    (0.300, 0.255, 0.0032, 0.0097,  49.0),
+    (0.160, 0.057, 0.0030, 0.0085, 62.5),
+    (0.187, 0.118, 0.0027, 0.0102, 77.0),
+    (0.253, 0.125, 0.0021, 0.0076, 55.5),
+    (0.150, 0.680, 0.0048, 0.0198, 8.0),
+    (0.131, 0.521, 0.0039, 0.0158, 11.0),
+    (0.212, 0.550, 0.0068, 0.0295, 26.0),
+    (0.258, 0.450, 0.0062, 0.0201, 30.0),
+    (0.152, 0.365, 0.0032, 0.0196, 4.0),
+    (0.280, 0.385, 0.0048, 0.0184, 30.0),
+    (0.380, 0.498, 0.0080, 0.0307, 41.0),
+    (0.160, 0.200, 0.0023, 0.0100, 34.5),
+    (0.228, 0.250, 0.0032, 0.0143, 44.0),
+    (0.305, 0.323, 0.0040, 0.0136, 50.0),
+    (0.385, 0.393, 0.0043, 0.0151, 36.0),
+    (0.472, 0.399, 0.0058, 0.0159, 38.0),
+    (0.527, 0.350, 0.0079, 0.0183, 68.0),
+    (0.475, 0.300, 0.0058, 0.0141, 47.0),
+    (0.510, 0.236, 0.0040, 0.0104, 60.0),
+    (0.596, 0.283, 0.0063, 0.0134, 68.0),
+    (0.344, 0.284, 0.0037, 0.0118, 48.0),
+    (0.390, 0.237, 0.0039, 0.0101, 53.0),
+    (0.441, 0.198, 0.0044, 0.0103, 60.0),
+    (0.278, 0.223, 0.0027, 0.0082, 37.0),
+    (0.240, 0.290, 0.0028, 0.0092, 44.0),
+    (0.300, 0.255, 0.0032, 0.0097, 49.0),
 ]
 
 # ── Color vision deficiency simulation (Viénot et al. 1999) ─────────
 # Hunt-Pointer-Estevez matrix (D65 adapted)
 M_RGB_TO_LMS = np.array([
-    [ 0.4002,  0.7076, -0.0808],
-    [-0.2263,  1.1653,  0.0457],
-    [ 0.0000,  0.0000,  0.9182],
+    [0.4002, 0.7076, -0.0808],
+    [-0.2263, 1.1653, 0.0457],
+    [0.0000, 0.0000, 0.9182],
 ])
 M_LMS_TO_RGB = np.linalg.inv(M_RGB_TO_LMS)
 
 # LMS projection matrices for each deficiency type
-M_DEUTERANOPIA = np.array([   # M-cones absent (red-green)
-    [1.0,    0.0,    0.0],
-    [0.4942, 0.0,    1.2483],
-    [0.0,    0.0,    1.0],
+M_DEUTERANOPIA = np.array([  # M-cones absent (red-green)
+    [1.0, 0.0, 0.0],
+    [0.4942, 0.0, 1.2483],
+    [0.0, 0.0, 1.0],
 ])
-M_PROTANOPIA = np.array([     # L-cones absent (red-blind)
-    [0.0,    2.0234, -2.5258],
-    [0.0,    1.0,     0.0],
-    [0.0,    0.0,     1.0],
+M_PROTANOPIA = np.array([  # L-cones absent (red-blind)
+    [0.0, 2.0234, -2.5258],
+    [0.0, 1.0, 0.0],
+    [0.0, 0.0, 1.0],
 ])
-M_TRITANOPIA = np.array([     # S-cones absent (blue-yellow)
-    [1.0,    0.0,     0.0],
-    [0.0,    1.0,     0.0],
+M_TRITANOPIA = np.array([  # S-cones absent (blue-yellow)
+    [1.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0],
     [-0.3959, 0.8011, 0.0],
 ])
+
 
 def _simulate_cvd(r, g, b, cvd_matrix):
     """Apply color vision deficiency simulation via LMS space."""
@@ -384,43 +446,49 @@ def _simulate_cvd(r, g, b, cvd_matrix):
     lin_sim = M_LMS_TO_RGB @ lms_sim
     return np.clip(linear_to_srgb(np.clip(lin_sim, 0, None)), 0, 1)
 
+
 def simulate_deuteranopia(r, g, b):
     """sRGB → deuteranopia-simulated sRGB (no M cones, red-green blind)."""
     return _simulate_cvd(r, g, b, M_DEUTERANOPIA)
+
 
 def simulate_protanopia(r, g, b):
     """sRGB → protanopia-simulated sRGB (no L cones, red-blind)."""
     return _simulate_cvd(r, g, b, M_PROTANOPIA)
 
+
 def simulate_tritanopia(r, g, b):
     """sRGB → tritanopia-simulated sRGB (no S cones, blue-yellow blind)."""
     return _simulate_cvd(r, g, b, M_TRITANOPIA)
+
 
 # ── Planckian locus (Kang et al. 2002 polynomial) ────────────────────
 def planckian_xy(T):
     """Blackbody chromaticity (x, y) for color temperature T in Kelvin.
     Valid range: ~1667 K – 25000 K.  Kang et al. 2002 polynomial fit."""
     if T <= 4000:
-        x = (-0.2661239e9 / T**3 - 0.2343580e6 / T**2
+        x = (-0.2661239e9 / T ** 3 - 0.2343580e6 / T ** 2
              + 0.8776956e3 / T + 0.179910)
     else:
-        x = (-3.0258469e9 / T**3 + 2.1070379e6 / T**2
+        x = (-3.0258469e9 / T ** 3 + 2.1070379e6 / T ** 2
              + 0.2226347e3 / T + 0.240390)
     if T <= 2222:
-        y = (-1.1063814 * x**3 - 1.34811020 * x**2 + 2.18555832 * x - 0.20219683)
+        y = (-1.1063814 * x ** 3 - 1.34811020 * x ** 2 + 2.18555832 * x - 0.20219683)
     elif T <= 4000:
-        y = (-0.9549476 * x**3 - 1.37418593 * x**2 + 2.09137015 * x - 0.16748867)
+        y = (-0.9549476 * x ** 3 - 1.37418593 * x ** 2 + 2.09137015 * x - 0.16748867)
     else:
-        y = ( 3.0817580 * x**3 - 5.87338670 * x**2 + 3.75112997 * x - 0.37001483)
+        y = (3.0817580 * x ** 3 - 5.87338670 * x ** 2 + 3.75112997 * x - 0.37001483)
     return x, y
+
 
 # ── Bradford chromatic adaptation ────────────────────────────────────
 M_BRADFORD = np.array([
-    [ 0.8951,  0.2664, -0.1614],
-    [-0.7502,  1.7135,  0.0367],
-    [ 0.0389, -0.0685,  1.0296],
+    [0.8951, 0.2664, -0.1614],
+    [-0.7502, 1.7135, 0.0367],
+    [0.0389, -0.0685, 1.0296],
 ])
 _M_BRADFORD_INV = np.linalg.inv(M_BRADFORD)
+
 
 def bradford_adapt(X, Y, Z, src_white, dst_white):
     """Adapt XYZ from src_white to dst_white using Bradford method.
@@ -430,6 +498,7 @@ def bradford_adapt(X, Y, Z, src_white, dst_white):
     scale = np.diag(rho_d / rho_s)
     M_adapt = _M_BRADFORD_INV @ scale @ M_BRADFORD
     return M_adapt @ np.array([X, Y, Z])
+
 
 # D65 and D50 white points
 D65_WHITE = (0.95047, 1.00000, 1.08883)
@@ -441,7 +510,8 @@ _PQ_M2 = 78.84375
 _PQ_C1 = 0.8359375
 _PQ_C2 = 18.8515625
 _PQ_C3 = 18.6875
-_PQ_L_PEAK = 10000.0   # cd/m²
+_PQ_L_PEAK = 10000.0  # cd/m²
+
 
 def pq_eotf(N):
     """PQ EOTF: normalized [0,1] → absolute luminance (cd/m²).
@@ -452,11 +522,13 @@ def pq_eotf(N):
     den = _PQ_C2 - _PQ_C3 * Np
     return _PQ_L_PEAK * (num / den) ** (1.0 / _PQ_M1)
 
+
 def pq_oetf(L):
     """PQ OETF: absolute luminance (cd/m²) → normalized [0,1]."""
     L = np.asarray(L, dtype=float)
     Lp = (np.clip(L, 0, None) / _PQ_L_PEAK) ** _PQ_M1
     return (((_PQ_C1 + _PQ_C2 * Lp) / (1.0 + _PQ_C3 * Lp)) ** _PQ_M2)
+
 
 # ── WCAG 2.x contrast ────────────────────────────────────────────────
 def wcag_relative_luminance(r, g, b):
@@ -464,13 +536,15 @@ def wcag_relative_luminance(r, g, b):
     lin = srgb_to_linear(np.array([r, g, b]))
     return float(0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2])
 
+
 def wcag_contrast(rgb1, rgb2):
     """WCAG 2.x contrast ratio (≥ 1.0) between two sRGB colors."""
     L1 = wcag_relative_luminance(*rgb1)
     L2 = wcag_relative_luminance(*rgb2)
     lighter = max(L1, L2)
-    darker  = min(L1, L2)
+    darker = min(L1, L2)
     return (lighter + 0.05) / (darker + 0.05)
+
 
 # ── Gamut mapping (OKLch chroma reduction) ────────────────────────────
 def is_in_srgb(lin_r, lin_g, lin_b, tol=1e-4):
@@ -478,6 +552,7 @@ def is_in_srgb(lin_r, lin_g, lin_b, tol=1e-4):
     return (lin_r >= -tol and lin_r <= 1 + tol and
             lin_g >= -tol and lin_g <= 1 + tol and
             lin_b >= -tol and lin_b <= 1 + tol)
+
 
 def gamut_map_oklch(L, a, b, tol=1e-4):
     """Reduce chroma of OKLab color until it fits in sRGB gamut.
@@ -501,6 +576,7 @@ def gamut_map_oklch(L, a, b, tol=1e-4):
             break
     return oklch_to_oklab(L, C_lo, h)
 
+
 # ── OKLch palette generation ──────────────────────────────────────────
 def oklch_palette(n, L=0.65, C=0.15):
     """Return n equally-spaced OKLch hues as list of sRGB [0,1] arrays."""
@@ -512,19 +588,21 @@ def oklch_palette(n, L=0.65, C=0.15):
         colors.append(np.clip(linear_to_srgb(np.clip([ro, go, bxo], 0, 1)), 0, 1))
     return colors
 
+
 # ── IPT color space (Ebner & Fairchild 1998) ─────────────────────────
 # XYZ → LMS (Hunt-Pointer-Estevez, D65 adapted)
 M_XYZ_TO_LMS_IPT = np.array([
-    [ 0.4002, 0.7076, -0.0808],
-    [-0.2263, 1.1653,  0.0457],
-    [ 0.0000, 0.0000,  0.9182],
+    [0.4002, 0.7076, -0.0808],
+    [-0.2263, 1.1653, 0.0457],
+    [0.0000, 0.0000, 0.9182],
 ])
 # LMS^0.43 → IPT
 M_LMS_TO_IPT = np.array([
-    [0.4000,  0.4000,  0.2000],
-    [4.4550, -4.8510,  0.3960],
-    [0.8056,  0.3572, -1.1628],
+    [0.4000, 0.4000, 0.2000],
+    [4.4550, -4.8510, 0.3960],
+    [0.8056, 0.3572, -1.1628],
 ])
+
 
 def xyz_to_ipt(X, Y, Z):
     """CIE XYZ (D65) → IPT color space (Ebner & Fairchild 1998).
@@ -534,68 +612,76 @@ def xyz_to_ipt(X, Y, Z):
     lms_p = np.sign(lms) * np.abs(lms) ** 0.43
     return M_LMS_TO_IPT @ lms_p
 
+
 # ── CIE RGB CMF approximations (r̄ḡb̄, for negative-lobe visualization) ──
 # Based on Stiles & Burch 1955 / CIE 1931 2° primaries: R=700nm, G=546.1nm, B=435.8nm
 # Simple Gaussian-sum analytic fits to the tabulated CMFs
 def rbar(w):
     """CIE r̄(λ) color matching function (Stiles & Burch 2° approx).
     Has a negative lobe in the cyan ~480-520nm region."""
-    pos = (0.84 * np.exp(-0.5 * ((w - 600.8) / 33.0)**2)
-         + 0.10 * np.exp(-0.5 * ((w - 445.0) / 20.0)**2))
-    neg = -0.25 * np.exp(-0.5 * ((w - 494.0) / 27.0)**2)
+    pos = (0.84 * np.exp(-0.5 * ((w - 600.8) / 33.0) ** 2)
+           + 0.10 * np.exp(-0.5 * ((w - 445.0) / 20.0) ** 2))
+    neg = -0.25 * np.exp(-0.5 * ((w - 494.0) / 27.0) ** 2)
     return pos + neg
+
 
 def gbar(w):
     """CIE ḡ(λ) color matching function. Small negative lobe ~380-440nm."""
-    pos = (0.76 * np.exp(-0.5 * ((w - 555.0) / 36.0)**2)
-         + 0.22 * np.exp(-0.5 * ((w - 530.0) / 16.0)**2))
-    neg = -0.05 * np.exp(-0.5 * ((w - 410.0) / 20.0)**2)
+    pos = (0.76 * np.exp(-0.5 * ((w - 555.0) / 36.0) ** 2)
+           + 0.22 * np.exp(-0.5 * ((w - 530.0) / 16.0) ** 2))
+    neg = -0.05 * np.exp(-0.5 * ((w - 410.0) / 20.0) ** 2)
     return pos + neg
+
 
 def bbar(w):
     """CIE b̄(λ) color matching function. Mostly positive, sharp blue peak."""
-    return (1.12 * np.exp(-0.5 * ((w - 450.0) / 18.0)**2)
-          + 0.14 * np.exp(-0.5 * ((w - 430.0) / 9.0)**2))
+    return (1.12 * np.exp(-0.5 * ((w - 450.0) / 18.0) ** 2)
+            + 0.14 * np.exp(-0.5 * ((w - 430.0) / 9.0) ** 2))
+
 
 # ── Simple illuminant/SPD models ──────────────────────────────────────
 def illuminant_d65_spd(w):
     """Approximate CIE D65 relative spectral power distribution."""
     w = np.asarray(w, dtype=float)
     return np.where((w >= 380) & (w <= 780),
-                    100.0 * (0.5 + 0.5 * np.exp(-((w - 560) / 180)**2) + 0.08),
+                    100.0 * (0.5 + 0.5 * np.exp(-((w - 560) / 180) ** 2) + 0.08),
                     0.0)
+
 
 def illuminant_a_spd(w):
     """CIE Illuminant A: blackbody at 2856K (normalized to 1 at 560nm)."""
     w = np.asarray(w, dtype=float)
     # Planck radiation ratio relative to 560nm
-    c2 = 1.435e7   # nm·K
+    c2 = 1.435e7  # nm·K
     ref = np.exp(c2 / (560 * 2856)) - 1
-    return np.where((w > 0), (w / 560)**(-5) * (ref / (np.exp(c2 / (w * 2856)) - 1)), 0.0)
+    return np.where((w > 0), (w / 560) ** (-5) * (ref / (np.exp(c2 / (w * 2856)) - 1)), 0.0)
+
 
 def fluorescent_spd(w):
     """Simplified fluorescent lamp SPD: broad continuum + line peaks at 546nm and 611nm."""
     w = np.asarray(w, dtype=float)
-    broad = 0.3 * np.exp(-0.5 * ((w - 560) / 80)**2)
-    line1 = 0.6 * np.exp(-0.5 * ((w - 546) / 4)**2)
-    line2 = 0.5 * np.exp(-0.5 * ((w - 611) / 4)**2)
+    broad = 0.3 * np.exp(-0.5 * ((w - 560) / 80) ** 2)
+    line1 = 0.6 * np.exp(-0.5 * ((w - 546) / 4) ** 2)
+    line2 = 0.5 * np.exp(-0.5 * ((w - 611) / 4) ** 2)
     return np.where((w >= 380) & (w <= 780), broad + line1 + line2, 0.0)
+
 
 def spd_to_xyz(spd_fn, illum_fn, wl=None):
     """Integrate SPD × illuminant × CMFs over visible range → XYZ.
     Returns normalized (X, Y, Z) where Y_white = 1."""
     if wl is None:
         wl = np.linspace(380, 780, 401)
-    spd   = np.array([spd_fn(w)   for w in wl])
+    spd = np.array([spd_fn(w) for w in wl])
     illum = np.array([illum_fn(w) for w in wl])
-    xb    = np.array([xbar(w)     for w in wl])
-    yb    = np.array([ybar(w)     for w in wl])
-    zb    = np.array([zbar(w)     for w in wl])
+    xb = np.array([xbar(w) for w in wl])
+    yb = np.array([ybar(w) for w in wl])
+    zb = np.array([zbar(w) for w in wl])
     k = 1.0 / np.trapezoid(illum * yb, wl)
     X = k * np.trapezoid(spd * illum * xb, wl)
     Y = k * np.trapezoid(spd * illum * yb, wl)
     Z = k * np.trapezoid(spd * illum * zb, wl)
     return X, Y, Z
+
 
 # ── Linear-light blending ─────────────────────────────────────────────
 def linear_blend(c1_rgb, c2_rgb, t):
@@ -605,6 +691,7 @@ def linear_blend(c1_rgb, c2_rgb, t):
     lin_mid = lin1 * (1 - t) + lin2 * t
     return np.clip(linear_to_srgb(np.clip(lin_mid, 0, 1)), 0, 1)
 
+
 # ── Y'CbCr (BT.709) ──────────────────────────────────────────────────
 def rgb_to_ycbcr_bt709(r, g, b):
     """sRGB (gamma-encoded) → Y'CbCr full-range, BT.709."""
@@ -613,6 +700,7 @@ def rgb_to_ycbcr_bt709(r, g, b):
     Cr = (r - Yp) / 1.5748
     return Yp, Cb, Cr
 
+
 def ycbcr_to_rgb_bt709(Yp, Cb, Cr):
     """Y'CbCr (BT.709) → sRGB (gamma-encoded)."""
     r = np.clip(Yp + 1.5748 * Cr, 0, 1)
@@ -620,11 +708,13 @@ def ycbcr_to_rgb_bt709(Yp, Cb, Cr):
     b = np.clip(Yp + 1.8556 * Cb, 0, 1)
     return r, g, b
 
+
 # ── Tone mapping operators ────────────────────────────────────────────
 def reinhard_tonemap(L, L_white=1.0):
     """Reinhard (2002) tone map: L_out = L(1+L/Lw²)/(1+L)."""
     L = np.asarray(L, dtype=float)
     return L * (1.0 + L / L_white ** 2) / (1.0 + L)
+
 
 def aces_tonemap(x):
     """ACES filmic tone mapping approximation (Narkowicz 2015)."""
@@ -632,19 +722,21 @@ def aces_tonemap(x):
     a, b, c, d, e = 2.51, 0.03, 2.43, 0.59, 0.14
     return np.clip((x * (a * x + b)) / (x * (c * x + d) + e), 0, 1)
 
+
 def agx_tonemap(x):
     """AgX-like S-curve tone mapping (simplified version)."""
     x = np.asarray(x, dtype=float)
     x = np.clip(x, 0, None)
     return x / (x + 0.5)  # simplified sigmoid for visualization
 
+
 # ── Spectral power distribution → XYZ (already in spd_to_xyz) ────────
 def spectral_reflectance_to_xyz(reflect_fn, illum_fn, wl=None):
     """Integrate object reflectance × illuminant × CMFs → XYZ."""
     if wl is None:
         wl = np.linspace(380, 780, 401)
-    refl  = np.array([float(reflect_fn(w)) for w in wl])
-    illum = np.array([float(illum_fn(w))  for w in wl])
+    refl = np.array([float(reflect_fn(w)) for w in wl])
+    illum = np.array([float(illum_fn(w)) for w in wl])
     xb = np.array([xbar(w) for w in wl])
     yb = np.array([ybar(w) for w in wl])
     zb = np.array([zbar(w) for w in wl])
@@ -662,36 +754,40 @@ class TitleScene(Scene):
     def construct(self):
         self.camera.background_color = BG
 
-        # Particle field using OKLab hue circle
+        # Particle field — 220 OKLab hue-circle dots, capped within safe frame bounds
         dots = VGroup()
         np.random.seed(7)
-        for _ in range(150):
+        for _ in range(220):
             h = np.random.random() * TAU
-            L = 0.65 + 0.25 * np.random.random()
-            C = 0.08 + 0.10 * np.random.random()
+            L = 0.60 + 0.30 * np.random.random()
+            C = 0.10 + 0.14 * np.random.random()  # higher C → more vivid hues
             col = oklab_to_hex(L, C * np.cos(h), C * np.sin(h))
-            d = Dot(point=[np.random.uniform(-7.5, 7.5),
-                           np.random.uniform(-4.5, 4.5), 0],
+            d = Dot(point=[np.random.uniform(-6.2, 6.2),
+                           np.random.uniform(-3.6, 3.6), 0],
                     radius=np.random.uniform(0.02, 0.10),
                     color=col, fill_opacity=np.random.uniform(0.15, 0.55))
             dots.add(d)
-        self.play(FadeIn(dots, lag_ratio=0.015), run_time=1.5)
+        self.play(FadeIn(dots, lag_ratio=0.012), run_time=1.5)
 
         title = Text("Color Spaces", font_size=84, weight=BOLD, color=TEXT_PRI)
-        sub   = Text("From Light to OKLab", font_size=38, color=ACCENT_TEAL)
+        sub = Text("Light · Eyes · Math · Color", font_size=38, color=ACCENT_TEAL)
         sub.next_to(title, DOWN, buff=0.4)
         VGroup(title, sub).move_to(ORIGIN)
 
-        rainbow = Line(LEFT * 4.5, RIGHT * 4.5, stroke_width=4)
+        rainbow = Line(LEFT * 4.5, RIGHT * 4.5, stroke_width=6)
         rainbow.set_color(color=[MUTED_RED, ACCENT_ORANGE, ACCENT_YELLOW,
-                                  ACCENT_GREEN, ACCENT_BLUE, ACCENT_PURPLE, ACCENT_PINK])
+                                 ACCENT_GREEN, ACCENT_BLUE, ACCENT_PURPLE, ACCENT_PINK])
         rainbow.next_to(sub, DOWN, buff=0.35)
+
+        scope_lbl = Text("complete beginner-friendly",
+                         font_size=22, color=TEXT_SEC)
+        scope_lbl.next_to(rainbow, DOWN, buff=0.3)
 
         self.play(Write(title, run_time=1.6),
                   FadeIn(sub, shift=UP * 0.3, run_time=1.4))
-        self.play(Create(rainbow, run_time=1.8))
-        self.play(dots.animate.scale(1.12).set_opacity(0.18), run_time=1.8,
-                  rate_func=smooth)
+        self.play(Create(rainbow, run_time=2.2))
+        self.play(FadeIn(scope_lbl, shift=UP * 0.15), run_time=1.2)
+        self.play(dots.animate.set_opacity(0.18), run_time=2.0, rate_func=smooth)
         self.wait(3.5)
         self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
@@ -707,20 +803,33 @@ class ElectromagneticSpectrumScene(Scene):
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
 
+        # Hook: beginner intro before the spectrum
+        hook = VGroup(
+            Text("Light is electromagnetic radiation — energy travelling as waves.",
+                 font_size=22, color=TEXT_PRI),
+            Text("The wavelength of the wave determines what your eye perceives as colour.",
+                 font_size=22, color=TEXT_PRI),
+        ).arrange(DOWN, buff=0.35)
+        hook.move_to(ORIGIN)
+        self.play(FadeIn(hook, lag_ratio=0.3), run_time=1.5)
+        self.wait(3.5)
+        self.play(FadeOut(hook), run_time=1.0)
+
         # Full EM spectrum bar
         em_data = [
-            ("γ-rays",  "#7b1fa2", 0.8),
-            ("X-rays",  "#6a1b9a", 1.0),
-            ("UV",      "#4a148c", 0.8),
-            ("VISIBLE", None,      2.0),
-            ("IR",      "#b71c1c", 1.2),
-            ("Micro",   "#880e4f", 1.0),
-            ("Radio",   "#4a0033", 2.0),
+            ("γ-rays", "#7b1fa2", 0.8),
+            ("X-rays", "#6a1b9a", 1.0),
+            ("UV", "#4a148c", 0.8),
+            ("VISIBLE", None, 2.0),
+            ("IR", "#b71c1c", 1.2),
+            ("Micro", "#880e4f", 1.0),
+            ("Radio", "#4a0033", 2.0),
         ]
         em_bar = VGroup()
         x = -5.4
         vis_start_x = None
         vis_end_x = None
+        non_vis_idx = 0
         for name, col, w in em_data:
             if name == "VISIBLE":
                 vis_start_x = x
@@ -740,9 +849,14 @@ class ElectromagneticSpectrumScene(Scene):
                               fill_opacity=0.6, stroke_width=0.5,
                               stroke_color="#ffffff15")
                 r.move_to([x + w / 2, 0.8, 0])
-                lbl = Text(name, font_size=12, color="#ffffff88")
-                lbl.move_to(r)
+                lbl = Text(name, font_size=15, color="#ffffffaa")
+                # Alternate: even indices above bar, odd indices below
+                if non_vis_idx % 2 == 0:
+                    lbl.next_to(r, UP, buff=0.08)
+                else:
+                    lbl.next_to(r, DOWN, buff=0.08)
                 em_bar.add(VGroup(r, lbl))
+                non_vis_idx += 1
             x += w
 
         self.play(FadeIn(em_bar, lag_ratio=0.015), run_time=2)
@@ -752,7 +866,7 @@ class ElectromagneticSpectrumScene(Scene):
             [vis_start_x, 0.35, 0], [vis_end_x, 0.35, 0],
             direction=DOWN, color=ACCENT_YELLOW)
         vis_lbl = Text("~380–780 nm — the only light we see!", font_size=18,
-                        color=ACCENT_YELLOW)
+                       color=ACCENT_YELLOW)
         vis_lbl.next_to(vis_brace, DOWN, buff=0.15)
         self.play(Create(vis_brace), FadeIn(vis_lbl))
         self.wait(3.5)
@@ -770,18 +884,32 @@ class ElectromagneticSpectrumScene(Scene):
         for i in range(n):
             wl = 380 + (780 - 380) * i / (n - 1)
             rgb = wavelength_to_rgb(wl)
-            rect = Rectangle(width=bw/n + 0.005, height=1.0,
+            rect = Rectangle(width=bw / n + 0.005, height=1.0,
                              fill_color=rgb_to_hex(rgb), fill_opacity=1,
                              stroke_width=0)
-            rect.move_to(LEFT * bw/2 + RIGHT * (i * bw/n + bw/n/2) + UP * 0.4)
+            rect.move_to(LEFT * bw / 2 + RIGHT * (i * bw / n + bw / n / 2) + UP * 0.4)
             spectrum.add(rect)
         self.play(FadeIn(spectrum, lag_ratio=0.003, run_time=2))
+
+        # Colour name labels above visible spectrum
+        colour_name_data = [
+            ("Violet", 405), ("Blue", 455), ("Green", 530),
+            ("Yellow", 575), ("Orange", 610), ("Red", 680),
+        ]
+        colour_labels = VGroup()
+        for cname, wl in colour_name_data:
+            frac = (wl - 380) / (780 - 380)
+            xp = -bw / 2 + frac * bw
+            clbl = Text(cname, font_size=13, color=rgb_to_hex(wavelength_to_rgb(wl)))
+            clbl.move_to([xp, 1.1, 0])
+            colour_labels.add(clbl)
+        self.play(FadeIn(colour_labels, lag_ratio=0.2), run_time=1.2)
 
         # Wavelength ticks
         ticks = VGroup()
         for wl in [400, 450, 500, 550, 600, 650, 700, 750]:
             frac = (wl - 380) / (780 - 380)
-            xp = -bw/2 + frac * bw
+            xp = -bw / 2 + frac * bw
             tick = Line([xp, -0.15, 0], [xp, -0.35, 0],
                         color=TEXT_SEC, stroke_width=1.5)
             lbl = Text(str(wl), font_size=14, color=TEXT_SEC)
@@ -790,17 +918,40 @@ class ElectromagneticSpectrumScene(Scene):
         nm = Text("wavelength (nm)", font_size=16, color=TEXT_SEC).move_to(DOWN * 0.9)
         self.play(FadeIn(ticks), FadeIn(nm))
 
-        # Wave animation below spectrum
-        wave_note = Text(
-            "Shorter wavelength = higher energy (violet) · Longer = lower energy (red)",
-            font_size=18, color=TEXT_SEC)
-        wave_note.move_to(DOWN * 1.6)
-        self.play(FadeIn(wave_note, shift=UP * 0.15))
+        # Wave frequency comparison: violet (short λ) vs red (long λ)
+        wave_y = 1.8
+        violet_axes = Axes(
+            x_range=[0, 4, 1], y_range=[-1.2, 1.2, 1],
+            x_length=4.5, y_length=1.2,
+            axis_config={"include_ticks": False, "include_tip": False,
+                         "stroke_width": 1.0, "stroke_color": "#ffffff22"},
+        ).move_to(LEFT * 2.8 + DOWN * wave_y)
+        violet_wave = violet_axes.plot(
+            lambda t: np.sin(t * 6 * PI), color=ACCENT_PURPLE, stroke_width=2.5)
+        violet_lbl = Text("Violet  λ ≈ 400 nm · short · energetic",
+                          font_size=14, color=ACCENT_PURPLE)
+        violet_lbl.next_to(violet_axes, DOWN, buff=0.12)
+
+        red_axes = Axes(
+            x_range=[0, 4, 1], y_range=[-1.2, 1.2, 1],
+            x_length=4.5, y_length=1.2,
+            axis_config={"include_ticks": False, "include_tip": False,
+                         "stroke_width": 1.0, "stroke_color": "#ffffff22"},
+        ).move_to(RIGHT * 2.8 + DOWN * wave_y)
+        red_wave = red_axes.plot(
+            lambda t: np.sin(t * 2 * PI), color=MUTED_RED, stroke_width=2.5)
+        red_lbl = Text("Red  λ ≈ 700 nm · long · less energy",
+                       font_size=14, color=MUTED_RED)
+        red_lbl.next_to(red_axes, DOWN, buff=0.12)
+
+        self.play(Create(violet_wave), run_time=1.8)
+        self.play(Create(red_wave), run_time=1.8)
+        self.play(FadeIn(violet_lbl), FadeIn(red_lbl))
 
         insight = Text(
             "Each wavelength triggers a unique response in our eyes",
-            font_size=22, color=ACCENT_TEAL)
-        insight.to_edge(DOWN, buff=0.4)
+            font_size=20, color=ACCENT_TEAL)
+        insight.to_edge(DOWN, buff=0.55)
         self.play(FadeIn(insight, shift=UP * 0.2))
         self.wait(5)
         self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
@@ -818,11 +969,37 @@ class GammaTransferScene(Scene):
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
 
+        # ── Act 0: hook slide ─────────────────────────────────────────
+        hook_title = Text("The Brightness Problem", font_size=34,
+                          color=ACCENT_ORANGE, weight=BOLD)
+        hook_title.next_to(ch, DOWN, buff=0.55)
+        hook_body = VGroup(
+            Text("Question: if you store the value 128 in a pixel (out of 255),",
+                 font_size=21, color=TEXT_PRI),
+            Text("does that look like 50% brightness on screen?",
+                 font_size=21, color=TEXT_PRI),
+            Text("", font_size=10),
+            Text("Answer: No — it looks like only ~21%.",
+                 font_size=21, color=ACCENT_ORANGE),
+            Text("Understanding why requires a short trip into CRT history.",
+                 font_size=21, color=TEXT_SEC),
+        ).arrange(DOWN, buff=0.3)
+        hook_body.next_to(hook_title, DOWN, buff=0.45)
+        self.play(FadeIn(hook_title, shift=UP * 0.2))
+        for line in hook_body:
+            self.play(FadeIn(line, shift=UP * 0.1), run_time=0.9)
+        self.wait(5)
+        self.play(FadeOut(hook_title), FadeOut(hook_body), run_time=1.0)
+
         # ── Act 1: Why gamma exists ───────────────────────────────────
-        crt_lbl = Text("CRT Physics: voltage V → brightness  V²·²",
+        crt_lbl = Text("Old CRTs (cathode-ray tubes) had a physical quirk:",
                        font_size=24, color=TEXT_PRI)
         crt_lbl.next_to(ch, DOWN, buff=0.5)
+        crt_lbl2 = Text("doubling the voltage produced  4× the brightness  (a power-law response)",
+                        font_size=21, color=TEXT_SEC)
+        crt_lbl2.next_to(crt_lbl, DOWN, buff=0.25)
         self.play(FadeIn(crt_lbl))
+        self.play(FadeIn(crt_lbl2))
 
         gamma_axes = Axes(
             x_range=[0, 1, 0.25], y_range=[0, 1, 0.25],
@@ -845,10 +1022,17 @@ class GammaTransferScene(Scene):
         crt_plot_lbl.move_to(gamma_axes.c2p(0.75, 0.35))
         ideal_lbl = Text("ideal 1:1", font_size=14, color=GRID_COL)
         ideal_lbl.move_to(gamma_axes.c2p(0.7, 0.75))
+        # Callout: 50% signal → 21% light
+        callout_dot = Dot(gamma_axes.c2p(0.5, 0.5 ** 2.2), color=ACCENT_YELLOW, radius=0.08)
+        callout_arr = Arrow(gamma_axes.c2p(0.68, 0.5), gamma_axes.c2p(0.52, 0.5 ** 2.2 + 0.03),
+                            color=ACCENT_YELLOW, stroke_width=2, buff=0.05, max_tip_length_to_length_ratio=0.2)
+        callout_txt = Text("50% signal → only 21% light!", font_size=14, color=ACCENT_YELLOW)
+        callout_txt.move_to(gamma_axes.c2p(0.72, 0.52))
 
         self.play(Create(gamma_axes), FadeIn(gx_lbl), FadeIn(gy_lbl), run_time=1.4)
         self.play(Create(ideal_plot), FadeIn(ideal_lbl), run_time=1.2)
         self.play(Create(crt_plot), FadeIn(crt_plot_lbl), run_time=1.0)
+        self.play(FadeIn(callout_dot), GrowArrow(callout_arr), FadeIn(callout_txt))
 
         # Right panel: explanation
         explain_lines = VGroup(
@@ -893,7 +1077,10 @@ class GammaTransferScene(Scene):
         lin_seg = eotf_axes.plot(
             lambda x: x / 12.92, color=ACCENT_YELLOW, stroke_width=2.5,
             x_range=[0, 0.04045, 0.001])
-        lin_seg_ann = Text("linear\nbelow 0.04045", font_size=13, color=ACCENT_YELLOW)
+        lin_seg_ann = VGroup(
+            Text("linear", font_size=13, color=ACCENT_YELLOW),
+            Text("below 0.04045", font_size=13, color=ACCENT_YELLOW),
+        ).arrange(DOWN, buff=0.08)
         lin_seg_ann.move_to(eotf_axes.c2p(0.10, 0.25))
 
         self.play(Create(eotf_axes), FadeIn(ex_lbl), FadeIn(ey_lbl), run_time=1.4)
@@ -910,6 +1097,27 @@ class GammaTransferScene(Scene):
         gray_lines.move_to(RIGHT * 2.8 + DOWN * 0.5)
         for line in gray_lines:
             self.play(FadeIn(line), run_time=1.2)
+
+        # Visual swatches: naive 0.5 vs correct 0.214
+        swatch_naive = Rectangle(width=1.8, height=1.0,
+                                 fill_color=rgb_to_hex([0.5, 0.5, 0.5]), fill_opacity=1,
+                                 stroke_width=0)
+        swatch_correct = Rectangle(width=1.8, height=1.0,
+                                   fill_color=rgb_to_hex([0.214, 0.214, 0.214]), fill_opacity=1,
+                                   stroke_width=0)
+        swatches = VGroup(swatch_naive, swatch_correct).arrange(RIGHT, buff=0.5)
+        swatches.move_to(RIGHT * 2.8 + UP * 1.3)
+        swatch_naive_lbl = VGroup(
+            Text("0.5", font_size=15, color=MUTED_RED),
+            Text("(as stored)", font_size=13, color=MUTED_RED),
+        ).arrange(DOWN, buff=0.06)
+        swatch_naive_lbl.next_to(swatch_naive, DOWN, buff=0.1)
+        swatch_correct_lbl = VGroup(
+            Text("0.214", font_size=15, color=ACCENT_GREEN),
+            Text("(actual light)", font_size=13, color=ACCENT_GREEN),
+        ).arrange(DOWN, buff=0.06)
+        swatch_correct_lbl.next_to(swatch_correct, DOWN, buff=0.1)
+        self.play(FadeIn(swatches), FadeIn(swatch_naive_lbl), FadeIn(swatch_correct_lbl))
         self.wait(4)
 
         # ── Act 3: Quantization and banding ──────────────────────────
@@ -924,7 +1132,7 @@ class GammaTransferScene(Scene):
         lbl_lin = Text("8-bit LINEAR (bands visible)", font_size=18, color=MUTED_RED)
         lbl_lin.move_to(UP * 0.7 + LEFT * 3.0)
         lbl_gam = Text("8-bit GAMMA-ENCODED (smooth)", font_size=18, color=ACCENT_GREEN)
-        lbl_gam.move_to(DOWN * 1.2 + LEFT * 3.0)
+        lbl_gam.move_to(DOWN * 2.05 + LEFT * 3.0)
         self.play(FadeIn(lbl_lin), FadeIn(lbl_gam))
 
         # Linear 8-bit gradient bar (show posterization by quantizing to 8 bits linearly)
@@ -939,24 +1147,24 @@ class GammaTransferScene(Scene):
             lin_q = round(t * 255) / 255.0
             lin_col = rgb_to_hex([lin_q, lin_q, lin_q])
             r1 = Rectangle(width=sw + 0.02, height=0.7,
-                            fill_color=lin_col, fill_opacity=1, stroke_width=0)
+                           fill_color=lin_col, fill_opacity=1, stroke_width=0)
             r1.move_to(LEFT * bar_w / 2 + RIGHT * (i * sw + sw / 2) + UP * 0.1)
             lin_bar.add(r1)
             # Gamma-encoded: quantize in gamma space → perceptually uniform
             gam_encoded = float(linear_to_srgb(np.array([t]))[0])
             gam_col = rgb_to_hex([gam_encoded, gam_encoded, gam_encoded])
             r2 = Rectangle(width=sw + 0.02, height=0.7,
-                            fill_color=gam_col, fill_opacity=1, stroke_width=0)
+                           fill_color=gam_col, fill_opacity=1, stroke_width=0)
             r2.move_to(LEFT * bar_w / 2 + RIGHT * (i * sw + sw / 2) + DOWN * 1.5)
             gam_bar.add(r2)
 
         self.play(FadeIn(lin_bar), run_time=1.5)
         self.play(FadeIn(gam_bar), run_time=1.5)
 
-        quant_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
-                                      fill_color=PANEL, fill_opacity=0.9,
-                                      stroke_color=ACCENT_YELLOW, stroke_width=1.5)
-        quant_box.to_edge(DOWN, buff=0.3)
+        quant_box = RoundedRectangle(corner_radius=0.12, width=11, height=0.9,
+                                     fill_color=PANEL, fill_opacity=0.9,
+                                     stroke_color=ACCENT_YELLOW, stroke_width=1.5)
+        quant_box.to_edge(DOWN, buff=0.45)
         quant_insight = Text(
             "Gamma ≈ perceptual quantization: equal bit steps ≈ equal JNDs  →  8-bit sRGB is sufficient",
             font_size=18, color=ACCENT_YELLOW)
@@ -974,29 +1182,88 @@ class HumanVisionScene(Scene):
         self.camera.background_color = BG
 
         ch = Text("III.  How We See Color", font_size=44,
-                   color=ACCENT_BLUE, weight=BOLD)
+                  color=ACCENT_BLUE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
 
-        # Simplified eye cross-section
-        eye = Ellipse(width=2.6, height=2.2, color=TEXT_SEC, stroke_width=2)
-        lens = Arc(radius=0.6, start_angle=-PI/3, angle=2*PI/3,
-                   color=ACCENT_BLUE, stroke_width=2.5)
-        lens.move_to(eye.get_left() + RIGHT * 0.6)
-        pupil = Dot(eye.get_left() + RIGHT * 0.35, radius=0.18,
-                    color="#1a1a2e", fill_opacity=1)
-        retina = Arc(radius=1.2, start_angle=-PI/4, angle=PI/2,
-                     color=ACCENT_ORANGE, stroke_width=3.5)
-        retina.move_to(eye.get_right() + LEFT * 0.2)
-        ret_lbl = Text("Retina", font_size=14, color=ACCENT_ORANGE)
-        ret_lbl.next_to(retina, RIGHT, buff=0.15)
-        eye_group = VGroup(eye, lens, pupil, retina, ret_lbl)
-        eye_group.move_to(LEFT * 4 + UP * 0.5)
-        self.play(Create(eye), FadeIn(lens), FadeIn(pupil),
-                  Create(retina), FadeIn(ret_lbl))
+        # Hook before eye diagram
+        hook_eye = VGroup(
+            Text("To understand colour, we first need to understand the sensor — your eye.",
+                 font_size=20, color=TEXT_PRI),
+            Text("Light enters, hits the back wall (the retina), and triggers one of three detectors.",
+                 font_size=20, color=TEXT_PRI),
+        ).arrange(DOWN, buff=0.35)
+        hook_eye.next_to(ch, DOWN, buff=0.5)
+        self.play(FadeIn(hook_eye, lag_ratio=0.3), run_time=1.5)
+        self.wait(3)
 
-        # Arrow
-        arrow = Arrow(eye.get_right() + RIGHT * 0.4, RIGHT * 0.2 + UP * 0.5,
+        # Eye cross-section — labelled anatomy built from Manim primitives
+        eye_cx = LEFT * 4 + UP * 0.2  # centre of the eye group
+
+        sclera = Ellipse(width=3.4, height=2.8,
+                         color=TEXT_SEC, fill_color="#1a1a2e", fill_opacity=0.6,
+                         stroke_width=2)
+        sclera.move_to(eye_cx)
+
+        iris = Annulus(inner_radius=0.22, outer_radius=0.52,
+                       color="#7b5c2e", fill_color="#7b5c2e", fill_opacity=0.9,
+                       stroke_width=0)
+        iris.move_to(sclera.get_left() + RIGHT * 0.75)
+
+        pupil = Circle(radius=0.22, color=BG, fill_color=BG, fill_opacity=1,
+                       stroke_width=0)
+        pupil.move_to(iris)
+
+        lens = Ellipse(width=0.28, height=0.72,
+                       color=ACCENT_TEAL, fill_color="#163d4f", fill_opacity=0.7,
+                       stroke_width=1.5)
+        lens.next_to(iris, RIGHT, buff=0.15)
+
+        retina = Arc(radius=1.25, start_angle=-PI / 3.2, angle=2 * PI / 3.2,
+                     color=ACCENT_ORANGE, stroke_width=4)
+        retina.move_to(sclera.get_right() + LEFT * 0.22)
+
+        fovea = Dot(radius=0.09, color=ACCENT_YELLOW)
+        # Place fovea at the midpoint of the retina arc
+        fovea.move_to(retina.get_top())
+
+        optic = Line(ORIGIN, RIGHT * 0.55, color=TEXT_SEC, stroke_width=3)
+        optic.next_to(sclera, RIGHT, buff=-0.4)
+        optic.shift(DOWN * 0.5)
+
+        rays = VGroup(*[
+            Line(eye_cx + LEFT * 2.8 + UP * (0.3 * (i - 1)),
+                 sclera.get_left() + RIGHT * 0.12,
+                 color=ACCENT_YELLOW, stroke_width=1.5, stroke_opacity=0.6)
+            for i in range(3)
+        ])
+
+        lbl_pupil = Text("Pupil", font_size=13, color=TEXT_SEC)
+        lbl_lens = Text("Lens", font_size=13, color=ACCENT_TEAL)
+        lbl_retina = Text("Retina", font_size=13, color=ACCENT_ORANGE)
+        lbl_fovea = Text("Fovea", font_size=13, color=ACCENT_YELLOW)
+        lbl_optic = Text("Optic nerve", font_size=12, color=TEXT_SEC)
+        lbl_pupil.next_to(pupil, DOWN, buff=0.12)
+        lbl_lens.next_to(lens, UP, buff=0.12)
+        lbl_retina.next_to(retina, RIGHT, buff=0.12)
+        lbl_fovea.next_to(fovea, UP, buff=0.12)
+        lbl_optic.next_to(optic, RIGHT, buff=0.08)
+
+        eye_group = VGroup(sclera, iris, pupil, lens, retina, fovea, optic, rays,
+                           lbl_pupil, lbl_lens, lbl_retina, lbl_fovea, lbl_optic)
+
+        self.play(FadeOut(hook_eye), run_time=0.8)
+        self.play(Create(sclera), run_time=1.0)
+        self.play(FadeIn(iris), FadeIn(pupil), run_time=0.8)
+        self.play(Create(lens), FadeIn(lbl_lens), run_time=0.8)
+        self.play(Create(retina), FadeIn(lbl_retina), run_time=0.8)
+        self.play(FadeIn(fovea), FadeIn(lbl_fovea), run_time=0.6)
+        self.play(Create(optic), FadeIn(lbl_optic), run_time=0.6)
+        self.play(FadeIn(lbl_pupil), run_time=0.5)
+        self.play(FadeIn(rays), run_time=0.8)
+
+        # Arrow: from eye to cone curves area
+        arrow = Arrow(sclera.get_right() + RIGHT * 0.15, RIGHT * 0.2 + UP * 0.5,
                       color=TEXT_SEC, stroke_width=2, buff=0.1)
         self.play(GrowArrow(arrow))
 
@@ -1008,7 +1275,7 @@ class HumanVisionScene(Scene):
         axes.move_to(RIGHT * 2.3 + UP * 0.4)
         x_lbl = Text("λ (nm)", font_size=15, color=TEXT_SEC)
         x_lbl.next_to(axes, DOWN, buff=0.12)
-        y_lbl = Text("response", font_size=15, color=TEXT_SEC).rotate(PI/2)
+        y_lbl = Text("response", font_size=15, color=TEXT_SEC).rotate(PI / 2)
         y_lbl.next_to(axes, LEFT, buff=0.12)
 
         def cone(wl, peak, sigma):
@@ -1040,28 +1307,53 @@ class HumanVisionScene(Scene):
         self.play(Create(m_plot), FadeIn(m_area), FadeIn(m_lbl), run_time=0.9)
         self.play(Create(l_plot), FadeIn(l_area), FadeIn(l_lbl), run_time=0.9)
 
-        box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
-                                fill_color=PANEL, fill_opacity=0.9,
-                                stroke_color=ACCENT_YELLOW, stroke_width=1.5)
-        box.to_edge(DOWN, buff=0.3)
+        bridging = Text("These 3 curves explain why a camera sensor has R·G·B channels.",
+                        font_size=19, color=TEXT_SEC)
+        bridging.next_to(axes, DOWN, buff=0.3)
+        self.play(FadeIn(bridging, shift=UP * 0.1))
+        self.wait(2)
+
         insight = Text(
             "3 cone types → every color we see is described by just 3 numbers  (trichromacy)",
             font_size=20, color=ACCENT_YELLOW)
+        box = RoundedRectangle(corner_radius=0.12, width=insight.width + 0.1, height=0.9,
+                               fill_color=PANEL, fill_opacity=0.9,
+                               stroke_color=ACCENT_YELLOW, stroke_width=1.5)
+
+        box.to_edge(DOWN, buff=0.45)
         insight.move_to(box)
         self.play(FadeIn(box), FadeIn(insight))
         self.wait(6)
 
         # ── Act 2: Opponent Process Theory ───────────────────────────────
         self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.4)
+        self.play(FadeIn(ch))
+
+        # Bridge before Opponent Process
+        bridge = VGroup(
+            Text("But wait — if you have 3 sensors,",
+                 font_size=21, color=TEXT_PRI),
+            Text("why do we talk about red/green and blue/yellow?",
+                 font_size=21, color=TEXT_PRI),
+            Text("Your brain rewires the cone signals into opponent channels.",
+                 font_size=21, color=TEXT_PRI),
+        ).arrange(DOWN, buff=0.35)
+        bridge.move_to(ORIGIN)
+        self.play(FadeIn(bridge, lag_ratio=0.3), run_time=1.5)
+        self.wait(3.5)
+        self.play(FadeOut(bridge), run_time=1.0)
 
         op_title = Text("Opponent Process Theory  (Hering 1892)",
                         font_size=38, color=ACCENT_PURPLE, weight=BOLD)
         op_title.to_edge(UP, buff=0.45)
-        self.play(FadeIn(op_title, shift=DOWN * 0.2))
+        self.play(FadeOut(ch), FadeIn(op_title, shift=DOWN * 0.2))
 
         wls = np.linspace(380, 780, 200)
+
         def s_cone(w): return np.exp(-0.5 * ((w - 445) / 24) ** 2)
+
         def m_cone(w): return np.exp(-0.5 * ((w - 543) / 38) ** 2)
+
         def l_cone(w): return np.exp(-0.5 * ((w - 570) / 48) ** 2)
 
         op_axes = Axes(
@@ -1080,7 +1372,7 @@ class HumanVisionScene(Scene):
             lambda w: l_cone(w) - m_cone(w),
             color=MUTED_RED, stroke_width=3.5, x_range=[380, 780])
         rg_lbl = Text("L − M  (red / green)", font_size=18, color=MUTED_RED, weight=BOLD)
-        rg_lbl.move_to(op_axes.c2p(490, 0.92))
+        rg_lbl.move_to(op_axes.c2p(650, 0.6))
         rg_lbl.shift(RIGHT * 1.0)
 
         # Blue-yellow channel: (L + M) − S
@@ -1089,26 +1381,30 @@ class HumanVisionScene(Scene):
             color=ACCENT_YELLOW, stroke_width=3.5, x_range=[380, 780])
         by_lbl = Text("(L+M) − S  (blue / yellow)", font_size=18,
                       color=ACCENT_YELLOW, weight=BOLD)
-        by_lbl.move_to(op_axes.c2p(490, -0.45))
+        by_lbl.move_to(op_axes.c2p(550, -0.45))
         by_lbl.shift(RIGHT * 0.8)
 
         self.play(Create(rg_plot), FadeIn(rg_lbl), run_time=1.0)
         self.play(Create(by_plot), FadeIn(by_lbl), run_time=1.0)
 
         # Annotate zero crossing of L-M ≈ unique yellow
-        yellow_x = 580
+        yellow_x = 6 / 215 * (17833 + 76 * np.sqrt(729))
         yellow_dot = Dot(op_axes.c2p(yellow_x, 0), color=ACCENT_YELLOW, radius=0.10)
-        yellow_ann = Text("Unique yellow\n(L−M = 0)", font_size=15, color=ACCENT_YELLOW)
-        yellow_ann.next_to(yellow_dot, UP * 2.5 + RIGHT * 0.5, buff=0.05)
+        yellow_ann = VGroup(
+            Text("Unique yellow", font_size=15, color=ACCENT_YELLOW),
+            Text("(L−M = 0)", font_size=15, color=ACCENT_YELLOW),
+        ).arrange(DOWN, buff=0.1)
+        yellow_ann.next_to(yellow_dot, UP, buff=0.15)
+        yellow_ann.shift(RIGHT * 0.5)
         self.play(FadeIn(yellow_dot), FadeIn(yellow_ann))
 
-        op_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.15,
-                                   fill_color=PANEL, fill_opacity=0.9,
-                                   stroke_color=ACCENT_PURPLE, stroke_width=1.5)
-        op_box.to_edge(DOWN, buff=0.15)
         op_insight = Text(
             "a* ≈ red/green axis · b* ≈ blue/yellow axis  →  CIELAB and OKLab reflect opponent biology",
             font_size=19, color=ACCENT_PURPLE)
+        op_box = RoundedRectangle(corner_radius=0.12, width=op_insight.width + 0.1, height=1.0,
+                                  fill_color=PANEL, fill_opacity=0.9,
+                                  stroke_color=ACCENT_PURPLE, stroke_width=1.5)
+        op_box.to_edge(DOWN, buff=0.4)
         op_insight.move_to(op_box)
         self.play(FadeIn(op_box), FadeIn(op_insight))
         self.wait(7)
@@ -1123,31 +1419,31 @@ class CIE1931Scene(Scene):
         self.camera.background_color = BG
 
         ch = Text("IV.  The CIE 1931 Standard", font_size=44,
-                   color=ACCENT_PURPLE, weight=BOLD)
+                  color=ACCENT_PURPLE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
 
         # Context
         ctx = Text("International Commission on Illumination — "
-                    "first mathematical model of human color vision",
-                    font_size=18, color=TEXT_SEC)
+                   "first mathematical model of human color vision",
+                   font_size=18, color=TEXT_SEC)
         ctx.next_to(ch, DOWN, buff=0.35)
         self.play(FadeIn(ctx))
 
         # Experiment diagram
         exp = RoundedRectangle(corner_radius=0.15, width=10, height=2.0,
-                                fill_color=PANEL, fill_opacity=0.9,
-                                stroke_color=ACCENT_PURPLE, stroke_width=1.5)
+                               fill_color=PANEL, fill_opacity=0.9,
+                               stroke_color=ACCENT_PURPLE, stroke_width=1.5)
         exp.move_to(UP * 0.3)
         self.play(FadeIn(exp))
 
         obs = Text("👁", font_size=36).move_to(exp.get_left() + RIGHT * 1.0)
         test = Rectangle(width=1.5, height=1.2, fill_color="#553311",
-                          fill_opacity=0.5, stroke_color=TEXT_SEC, stroke_width=1)
+                         fill_opacity=0.5, stroke_color=TEXT_SEC, stroke_width=1)
         test.move_to(exp.get_center() + LEFT * 1.5)
         test_lbl = Text("Test λ", font_size=14, color=TEXT_PRI).move_to(test)
         match = Rectangle(width=1.5, height=1.2, fill_color="#334455",
-                           fill_opacity=0.5, stroke_color=TEXT_SEC, stroke_width=1)
+                          fill_opacity=0.5, stroke_color=TEXT_SEC, stroke_width=1)
         match.move_to(exp.get_center() + RIGHT * 0.2)
         match_lbl = Text("r·R+g·G+b·B", font_size=12, color=TEXT_PRI).move_to(match)
         result_txt = Text("Record r,g,b\nfor every λ", font_size=15, color=ACCENT_ORANGE)
@@ -1159,10 +1455,10 @@ class CIE1931Scene(Scene):
 
         # Transition to CMFs
         self.play(FadeOut(VGroup(exp, obs, test, test_lbl, match,
-                                  match_lbl, result_txt, ctx)), run_time=1.2)
+                                 match_lbl, result_txt, ctx)), run_time=1.2)
 
         cmf_title = Text("Color Matching Functions  x̄(λ), ȳ(λ), z̄(λ)", font_size=24,
-                          color=TEXT_PRI)
+                         color=TEXT_PRI)
         cmf_title.next_to(ch, DOWN, buff=0.4)
         self.play(FadeIn(cmf_title))
 
@@ -1214,17 +1510,17 @@ class CIE1931Scene(Scene):
             axis_config={"color": GRID_COL, "stroke_width": 1.5})
         rgb_axes.move_to(DOWN * 0.5)
         rgb_zero = rgb_axes.plot(lambda w: 0, color=GRID_COL,
-                                  stroke_width=1.0, x_range=[380, 780])
+                                 stroke_width=1.0, x_range=[380, 780])
         rgb_x_lbl = Text("λ (nm)", font_size=15, color=TEXT_SEC)
         rgb_x_lbl.next_to(rgb_axes, DOWN, buff=0.12)
         self.play(Create(rgb_axes), Create(rgb_zero), FadeIn(rgb_x_lbl), run_time=1.4)
 
         r_plot = rgb_axes.plot(rbar, color=MUTED_RED, stroke_width=3.5,
-                                x_range=[380, 780, 2])
+                               x_range=[380, 780, 2])
         g_plot = rgb_axes.plot(gbar, color=MUTED_GREEN, stroke_width=3.5,
-                                x_range=[380, 780, 2])
+                               x_range=[380, 780, 2])
         b_plot = rgb_axes.plot(bbar, color=MUTED_BLUE, stroke_width=3.5,
-                                x_range=[380, 780, 2])
+                               x_range=[380, 780, 2])
 
         rl = MathTex(r"\bar{r}", font_size=24, color=MUTED_RED)
         rl.move_to(rgb_axes.c2p(640, 0.78))
@@ -1251,8 +1547,8 @@ class CIE1931Scene(Scene):
 
         # Show transformation arrow → x̄ȳz̄
         transform_box = RoundedRectangle(corner_radius=0.10, width=10.5, height=1.0,
-                                          fill_color=PANEL, fill_opacity=0.9,
-                                          stroke_color=ACCENT_ORANGE, stroke_width=1.5)
+                                         fill_color=PANEL, fill_opacity=0.9,
+                                         stroke_color=ACCENT_ORANGE, stroke_width=1.5)
         transform_box.to_edge(DOWN, buff=0.2)
         transform_txt = Text(
             "3×3 linear transform  →  x̄ȳz̄  (all positive)  →  XYZ primaries are imaginary",
@@ -1293,8 +1589,8 @@ class SpectralRenderingScene(Scene):
         rgb_row = VGroup()
         for lbl, col in zip(rgb_blocks, rgb_cols):
             b = RoundedRectangle(corner_radius=0.12, width=2.2, height=1.1,
-                                  fill_color=PANEL, fill_opacity=0.9,
-                                  stroke_color=col, stroke_width=1.8)
+                                 fill_color=PANEL, fill_opacity=0.9,
+                                 stroke_color=col, stroke_width=1.8)
             t = Text(lbl, font_size=15, color=col, line_spacing=1.1)
             t.move_to(b)
             rgb_row.add(VGroup(b, t))
@@ -1316,8 +1612,8 @@ class SpectralRenderingScene(Scene):
         spec_row = VGroup()
         for lbl, col in zip(spec_blocks, spec_cols):
             b = RoundedRectangle(corner_radius=0.12, width=1.9, height=1.1,
-                                  fill_color=PANEL, fill_opacity=0.9,
-                                  stroke_color=col, stroke_width=1.8)
+                                 fill_color=PANEL, fill_opacity=0.9,
+                                 stroke_color=col, stroke_width=1.8)
             t = Text(lbl, font_size=14, color=col, line_spacing=1.1)
             t.move_to(b)
             spec_row.add(VGroup(b, t))
@@ -1345,6 +1641,7 @@ class SpectralRenderingScene(Scene):
 
         # Show spectral locus: compute XYZ for a simple reflectance
         wls = np.linspace(380, 780, 200)
+
         # Green-ish reflectance: Gaussian centered at 540nm
         def green_reflect(w):
             return 0.8 * np.exp(-0.5 * ((w - 540) / 40) ** 2)
@@ -1383,8 +1680,8 @@ class SpectralRenderingScene(Scene):
         self.play(Create(prod_plot), FadeIn(prod_lbl), run_time=1.8)
 
         spec_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
-                                     fill_color=PANEL, fill_opacity=0.9,
-                                     stroke_color=ACCENT_TEAL, stroke_width=1.5)
+                                    fill_color=PANEL, fill_opacity=0.9,
+                                    stroke_color=ACCENT_TEAL, stroke_width=1.5)
         spec_box.to_edge(DOWN, buff=0.25)
         spec_txt = VGroup(
             Text("SPD × reflectance × CMFs → XYZ → sRGB",
@@ -1461,10 +1758,10 @@ class MetamerismScene(Scene):
 
         sw_y = -2.5
         sw1 = Rectangle(width=2.2, height=1.0, fill_color=swatch1_col,
-                         fill_opacity=1.0, stroke_color=TEXT_SEC, stroke_width=1.5)
+                        fill_opacity=1.0, stroke_color=TEXT_SEC, stroke_width=1.5)
         sw1.move_to(LEFT * 1.8 + UP * sw_y)
         sw2 = Rectangle(width=2.2, height=1.0, fill_color=swatch2_col,
-                         fill_opacity=1.0, stroke_color=TEXT_SEC, stroke_width=1.5)
+                        fill_opacity=1.0, stroke_color=TEXT_SEC, stroke_width=1.5)
         sw2.move_to(RIGHT * 1.0 + UP * sw_y)
         eq_sign = Text("≈", font_size=32, color=ACCENT_GREEN)
         eq_sign.move_to(UP * sw_y)
@@ -1485,10 +1782,10 @@ class MetamerismScene(Scene):
         self.play(Transform(d65_tag, illum_change))
 
         sw1_new = Rectangle(width=2.2, height=1.0, fill_color=swatch1a_col,
-                             fill_opacity=1.0, stroke_color=TEXT_SEC, stroke_width=1.5)
+                            fill_opacity=1.0, stroke_color=TEXT_SEC, stroke_width=1.5)
         sw1_new.move_to(sw1.get_center())
         sw2_new = Rectangle(width=2.2, height=1.0, fill_color=swatch2a_col,
-                             fill_opacity=1.0, stroke_color=TEXT_SEC, stroke_width=1.5)
+                            fill_opacity=1.0, stroke_color=TEXT_SEC, stroke_width=1.5)
         sw2_new.move_to(sw2.get_center())
         neq_sign = Text("≠", font_size=32, color=MUTED_RED)
         neq_sign.move_to(eq_sign.get_center())
@@ -1498,8 +1795,8 @@ class MetamerismScene(Scene):
 
         # ── Act 3: Engineering callout ────────────────────────────────
         meta_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.3,
-                                     fill_color=PANEL, fill_opacity=0.9,
-                                     stroke_color=ACCENT_PINK, stroke_width=1.5)
+                                    fill_color=PANEL, fill_opacity=0.9,
+                                    stroke_color=ACCENT_PINK, stroke_width=1.5)
         meta_box.to_edge(DOWN, buff=0.2)
         meta_txt = VGroup(
             Text("Color sensors see metameric matches.",
@@ -1549,7 +1846,9 @@ class IlluminantsChromAdaptScene(Scene):
         locus_dots = VGroup()
         for wl in wl_range:
             rgb = wavelength_to_rgb(wl)
-            xb_v = xbar(wl); yb_v = ybar(wl); zb_v = zbar(wl)
+            xb_v = xbar(wl);
+            yb_v = ybar(wl);
+            zb_v = zbar(wl)
             s = xb_v + yb_v + zb_v
             if s > 0.01:
                 cx, cy = xb_v / s, yb_v / s
@@ -1577,7 +1876,7 @@ class IlluminantsChromAdaptScene(Scene):
 
         # Mark key illuminants
         illuminants = [
-            ("A",   2856, ACCENT_ORANGE),
+            ("A", 2856, ACCENT_ORANGE),
             ("D50", 5003, ACCENT_YELLOW),
             ("D65", 6504, ACCENT_BLUE),
         ]
@@ -1606,8 +1905,8 @@ class IlluminantsChromAdaptScene(Scene):
 
         # ── Act 3: Practical usage ────────────────────────────────────
         brad_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.3,
-                                     fill_color=PANEL, fill_opacity=0.9,
-                                     stroke_color=ACCENT_TEAL, stroke_width=1.5)
+                                    fill_color=PANEL, fill_opacity=0.9,
+                                    stroke_color=ACCENT_TEAL, stroke_width=1.5)
         brad_box.to_edge(DOWN, buff=0.2)
         brad_txt = VGroup(
             Text("sRGB uses D65  ·  print typically D50  ·  Bradford converts between them",
@@ -1656,8 +1955,8 @@ class ColorConstancyScene(Scene):
         rows_c, cols_c = 5, 6
         base_x, base_y = -2.5, -0.2
         # Two "identical" patches: one in "shadow", one in "light"
-        light_val = 0.55    # light square
-        dark_val  = 0.27    # dark square
+        light_val = 0.55  # light square
+        dark_val = 0.27  # dark square
         shadow_alpha = 0.50  # uniform overlay representing shadow
 
         # The illusion: square A is a dark checker, square B is a light checker in shadow
@@ -1679,8 +1978,8 @@ class ColorConstancyScene(Scene):
                 else:
                     v = light_val if is_light else dark_val
                 c = Rectangle(width=cell_size, height=cell_size,
-                               fill_color=rgb_to_hex([v, v, v]),
-                               fill_opacity=1, stroke_width=0)
+                              fill_color=rgb_to_hex([v, v, v]),
+                              fill_opacity=1, stroke_width=0)
                 c.move_to([base_x + col * cell_size, base_y - row * cell_size, 0])
                 checker_grp.add(c)
 
@@ -1707,10 +2006,10 @@ class ColorConstancyScene(Scene):
         # Swatch comparison
         swatch_row = VGroup()
         for label, rgb_v, col in [("A", dark_val, ACCENT_ORANGE),
-                                    ("B (in shadow)", dark_val + 0.01, ACCENT_TEAL)]:
+                                  ("B (in shadow)", dark_val + 0.01, ACCENT_TEAL)]:
             sw = Rectangle(width=1.4, height=0.8,
-                            fill_color=rgb_to_hex([rgb_v] * 3),
-                            fill_opacity=1, stroke_color=col, stroke_width=2)
+                           fill_color=rgb_to_hex([rgb_v] * 3),
+                           fill_opacity=1, stroke_color=col, stroke_width=2)
             lbl = Text(label, font_size=15, color=col)
             lbl.next_to(sw, DOWN, buff=0.1)
             swatch_row.add(VGroup(sw, lbl))
@@ -1746,9 +2045,9 @@ class ColorConstancyScene(Scene):
         # Show two swatch pairs
         dress_sw = VGroup(
             Rectangle(width=2.5, height=1.2, fill_color="#b3a68f",
-                       fill_opacity=1, stroke_color=ACCENT_YELLOW, stroke_width=2),
+                      fill_opacity=1, stroke_color=ACCENT_YELLOW, stroke_width=2),
             Rectangle(width=2.5, height=1.2, fill_color="#4a5b8c",
-                       fill_opacity=1, stroke_color=ACCENT_BLUE, stroke_width=2),
+                      fill_opacity=1, stroke_color=ACCENT_BLUE, stroke_width=2),
         )
         dress_sw.arrange(RIGHT, buff=0.8)
         dress_sw.move_to(DOWN * 1.8)
@@ -1763,8 +2062,8 @@ class ColorConstancyScene(Scene):
 
         # ── Act 3: Connection to Bradford ────────────────────────────
         constancy_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.3,
-                                          fill_color=PANEL, fill_opacity=0.9,
-                                          stroke_color=ACCENT_ORANGE, stroke_width=1.5)
+                                         fill_color=PANEL, fill_opacity=0.9,
+                                         stroke_color=ACCENT_ORANGE, stroke_width=1.5)
         constancy_box.to_edge(DOWN, buff=0.2)
         constancy_txt = VGroup(
             Text("Color constancy = the visual system's built-in chromatic adaptation",
@@ -1787,7 +2086,7 @@ class ChromaticityScene(Scene):
         self.camera.background_color = BG
 
         ch = Text("IX.  CIE Chromaticity Diagram", font_size=42,
-                   color=ACCENT_PURPLE, weight=BOLD)
+                  color=ACCENT_PURPLE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
 
@@ -1815,7 +2114,7 @@ class ChromaticityScene(Scene):
             X, Y, Z = xbar(wl), ybar(wl), zbar(wl)
             s = X + Y + Z
             if s > 0.001:
-                xc, yc = X/s, Y/s
+                xc, yc = X / s, Y / s
                 rgb = wavelength_to_rgb(wl)
                 d = Dot(axes.c2p(xc, yc), radius=0.035,
                         color=rgb_to_hex(rgb))
@@ -1840,8 +2139,8 @@ class ChromaticityScene(Scene):
 
         # sRGB triangle
         tri = Polygon(axes.c2p(0.64, 0.33), axes.c2p(0.30, 0.60),
-                       axes.c2p(0.15, 0.06),
-                       color=WHITE, stroke_width=2, fill_opacity=0)
+                      axes.c2p(0.15, 0.06),
+                      color=WHITE, stroke_width=2, fill_opacity=0)
         tri_lbl = Text("sRGB", font_size=15, color=WHITE).move_to(axes.c2p(0.35, 0.30))
         wp = Dot(axes.c2p(0.3127, 0.3290), color=WHITE, radius=0.05)
         wp_lbl = Text("D65", font_size=13, color=WHITE).next_to(wp, UR, buff=0.08)
@@ -1849,8 +2148,8 @@ class ChromaticityScene(Scene):
 
         # Side note
         note = Text("The horseshoe contains all perceivable colors\n"
-                     "sRGB covers only a triangle inside it",
-                     font_size=16, color=TEXT_SEC, line_spacing=1.2)
+                    "sRGB covers only a triangle inside it",
+                    font_size=16, color=TEXT_SEC, line_spacing=1.2)
         note.move_to(RIGHT * 4 + DOWN * 1.5)
         self.play(FadeIn(note))
         self.wait(3.5)
@@ -1858,7 +2157,7 @@ class ChromaticityScene(Scene):
         # --- Act 2: Wide Color Gamuts ---
         self.play(FadeOut(note), run_time=1.0)
         wg_title = Text("Modern display gamuts on the same diagram:",
-                         font_size=17, color=TEXT_PRI)
+                        font_size=17, color=TEXT_PRI)
         wg_title.move_to(RIGHT * 4 + UP * 0.2)
         self.play(FadeIn(wg_title))
 
@@ -1874,15 +2173,15 @@ class ChromaticityScene(Scene):
         self.play(Create(bt_tri), run_time=1.5)
 
         leg_srgb = Text("■ sRGB     ~35% of visible gamut", font_size=13, color=WHITE)
-        leg_p3   = Text("■ P3       ~45% of visible gamut", font_size=13, color=ACCENT_ORANGE)
-        leg_bt   = Text("■ BT.2020  ~75% of visible gamut", font_size=13, color=ACCENT_PINK)
+        leg_p3 = Text("■ P3       ~45% of visible gamut", font_size=13, color=ACCENT_ORANGE)
+        leg_bt = Text("■ BT.2020  ~75% of visible gamut", font_size=13, color=ACCENT_PINK)
         legend = VGroup(leg_srgb, leg_p3, leg_bt).arrange(DOWN, buff=0.15,
-                                                            aligned_edge=LEFT)
+                                                          aligned_edge=LEFT)
         legend.move_to(RIGHT * 4 + DOWN * 1.0)
         self.play(FadeIn(legend))
 
         cam_note = Text("iPhone cameras capture in P3 —\nyour vision pipeline must handle it",
-                         font_size=14, color=TEXT_SEC, line_spacing=1.2)
+                        font_size=14, color=TEXT_SEC, line_spacing=1.2)
         cam_note.move_to(RIGHT * 4 + DOWN * 2.5)
         self.play(FadeIn(cam_note))
         self.wait(6)
@@ -1897,7 +2196,7 @@ class MacAdamEllipsesScene(Scene):
         self.camera.background_color = BG
 
         ch = Text("X.  MacAdam Ellipses  (1942)", font_size=42,
-                   color=ACCENT_YELLOW, weight=BOLD)
+                  color=ACCENT_YELLOW, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
 
@@ -1934,13 +2233,13 @@ class MacAdamEllipsesScene(Scene):
 
         # MacAdam ellipses (scaled ×10 for visibility)
         SCALE = 10.0
-        x_sc = 5.0 / 0.85   # Manim units per chromaticity unit, x
-        y_sc = 5.4 / 0.90   # Manim units per chromaticity unit, y
+        x_sc = 5.0 / 0.85  # Manim units per chromaticity unit, x
+        y_sc = 5.4 / 0.90  # Manim units per chromaticity unit, y
         ellipses_grp = VGroup()
         for (xc, yc, sa, sb, theta_deg) in MACADAM_ELLIPSES:
             e = Ellipse(
-                width  = sb * 2 * SCALE * x_sc,
-                height = sa * 2 * SCALE * y_sc,
+                width=sb * 2 * SCALE * x_sc,
+                height=sa * 2 * SCALE * y_sc,
                 color=ACCENT_YELLOW, stroke_width=1.6, fill_opacity=0)
             e.move_to(axes.c2p(xc, yc))
             e.rotate(np.radians(theta_deg))
@@ -1951,13 +2250,13 @@ class MacAdamEllipsesScene(Scene):
             run_time=2.5)
 
         scale_note = Text("(ellipses scaled ×10 for visibility)",
-                           font_size=11, color=TEXT_SEC)
+                          font_size=11, color=TEXT_SEC)
         scale_note.next_to(axes, DOWN, buff=0.08)
         self.play(FadeIn(scale_note))
 
         # ── Right panel: CIELAB a*b* space for comparison ──
         right_title = Text("The same 25 centers\nin CIELAB a*b* space:",
-                            font_size=16, color=ACCENT_PURPLE, line_spacing=1.2)
+                           font_size=16, color=ACCENT_PURPLE, line_spacing=1.2)
         right_title.move_to(RIGHT * 3.5 + UP * 2.0)
         self.play(FadeIn(right_title))
 
@@ -1989,7 +2288,7 @@ class MacAdamEllipsesScene(Scene):
         self.play(FadeIn(lab_dots, lag_ratio=0.04, run_time=1.5))
 
         lab_note = Text("~uniform circles —\nCIELAB corrects the non-uniformity",
-                         font_size=12, color=ACCENT_PURPLE, line_spacing=1.2)
+                        font_size=12, color=ACCENT_PURPLE, line_spacing=1.2)
         lab_note.move_to(RIGHT * 3.5 + DOWN * 2.5)
         self.play(FadeIn(lab_note))
 
@@ -2026,7 +2325,7 @@ class MacAdamEllipsesScene(Scene):
             de76_vals.append(delta_e76(lab1, lab2))
             L1, A1, B1 = srgb_to_oklab(*r1)
             L2, A2, B2 = srgb_to_oklab(*r2)
-            de_ok = float(np.sqrt((L2-L1)**2 + (A2-A1)**2 + (B2-B1)**2) * 100)
+            de_ok = float(np.sqrt((L2 - L1) ** 2 + (A2 - A1) ** 2 + (B2 - B1) ** 2) * 100)
             de_ok_vals.append(de_ok)
 
         max_val = max(max(de76_vals), max(de_ok_vals))
@@ -2055,8 +2354,8 @@ class MacAdamEllipsesScene(Scene):
         self.play(FadeIn(scatter_dots, lag_ratio=0.04), run_time=1.5)
 
         stress_box = RoundedRectangle(corner_radius=0.10, width=5.0, height=1.8,
-                                       fill_color=PANEL, fill_opacity=0.9,
-                                       stroke_color=ACCENT_TEAL, stroke_width=1.5)
+                                      fill_color=PANEL, fill_opacity=0.9,
+                                      stroke_color=ACCENT_TEAL, stroke_width=1.5)
         stress_box.move_to(RIGHT * 3.8 + DOWN * 0.2)
         stress_txt = VGroup(
             Text("STRESS values:", font_size=17, color=ACCENT_TEAL, weight=BOLD),
@@ -2078,7 +2377,7 @@ class RGBCubeScene(ThreeDScene):
     def construct(self):
         self.camera.background_color = BG
         ch = Text("XI.  The RGB Color Cube", font_size=42,
-                   color=ACCENT_BLUE, weight=BOLD)
+                  color=ACCENT_BLUE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.add_fixed_in_frame_mobjects(ch)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -2111,17 +2410,17 @@ class RGBCubeScene(ThreeDScene):
         self.play(FadeIn(cube_dots, lag_ratio=0.001, run_time=2.5))
 
         # Grayscale diagonal
-        gray = Line3D(axes.c2p(0,0,0), axes.c2p(1,1,1),
+        gray = Line3D(axes.c2p(0, 0, 0), axes.c2p(1, 1, 1),
                       color=WHITE, stroke_width=2.5)
         gray_lbl = Text("Grayscale", font_size=13, color=WHITE)
         gray_lbl.move_to(axes.c2p(0.5, 0.5, 0.5) + np.array([0.4, 0.3, 0]))
         self.add_fixed_orientation_mobjects(gray_lbl)
         self.play(Create(gray), FadeIn(gray_lbl))
 
-        self.move_camera(theta=-42*DEGREES + TAU, run_time=14, rate_func=smooth)
+        self.move_camera(theta=-42 * DEGREES + TAU, run_time=14, rate_func=smooth)
 
         note = Text("RGB: simple for hardware, not for human perception",
-                     font_size=22, color=ACCENT_PINK)
+                    font_size=22, color=ACCENT_PINK)
         note.to_edge(DOWN, buff=0.4)
         self.add_fixed_in_frame_mobjects(note)
         self.play(FadeIn(note))
@@ -2136,7 +2435,7 @@ class HSVCylinderScene(ThreeDScene):
     def construct(self):
         self.camera.background_color = BG
         ch = Text("XII.  HSV: Reshaping the Cube", font_size=42,
-                   color=ACCENT_ORANGE, weight=BOLD)
+                  color=ACCENT_ORANGE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.add_fixed_in_frame_mobjects(ch)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
@@ -2176,10 +2475,10 @@ class HSVCylinderScene(ThreeDScene):
             self.add_fixed_in_frame_mobjects(a)
         self.play(FadeIn(anns))
 
-        self.move_camera(theta=-35*DEGREES + TAU, run_time=14, rate_func=smooth)
+        self.move_camera(theta=-35 * DEGREES + TAU, run_time=14, rate_func=smooth)
 
         note = Text("HSV separates hue — but \"Value\" ≠ perceived lightness",
-                     font_size=20, color=ACCENT_PINK)
+                    font_size=20, color=ACCENT_PINK)
         note.to_edge(DOWN, buff=0.3)
         self.add_fixed_in_frame_mobjects(note)
         self.play(FadeOut(anns), FadeIn(note))
@@ -2210,12 +2509,18 @@ class HSVCylinderScene(ThreeDScene):
                     x_v = c * (1 - abs((H * 6) % 2 - 1))
                     m = L_hsl - c / 2
                     si = int(H * 6) % 6
-                    if si == 0: r2, g2, b2 = c + m, x_v + m, m
-                    elif si == 1: r2, g2, b2 = x_v + m, c + m, m
-                    elif si == 2: r2, g2, b2 = m, c + m, x_v + m
-                    elif si == 3: r2, g2, b2 = m, x_v + m, c + m
-                    elif si == 4: r2, g2, b2 = x_v + m, m, c + m
-                    else: r2, g2, b2 = c + m, m, x_v + m
+                    if si == 0:
+                        r2, g2, b2 = c + m, x_v + m, m
+                    elif si == 1:
+                        r2, g2, b2 = x_v + m, c + m, m
+                    elif si == 2:
+                        r2, g2, b2 = m, c + m, x_v + m
+                    elif si == 3:
+                        r2, g2, b2 = m, x_v + m, c + m
+                    elif si == 4:
+                        r2, g2, b2 = x_v + m, m, c + m
+                    else:
+                        r2, g2, b2 = c + m, m, x_v + m
                     angle = H * TAU
                     # Double-cone: radius = S * (0.5 - abs(L-0.5)) * 2 * 2.0
                     radius = S_hsl * (0.5 - abs(L_hsl - 0.5)) * 2 * 2.2
@@ -2234,7 +2539,7 @@ class HSVCylinderScene(ThreeDScene):
         hsl_anns.to_edge(DOWN, buff=0.6)
         self.add_fixed_in_frame_mobjects(hsl_anns)
         self.play(FadeIn(hsl_anns))
-        self.move_camera(theta=-35*DEGREES + TAU, run_time=14, rate_func=smooth)
+        self.move_camera(theta=-35 * DEGREES + TAU, run_time=14, rate_func=smooth)
         self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.2)
 
         # HWB comparison (2D)
@@ -2259,8 +2564,8 @@ class HSVCylinderScene(ThreeDScene):
             self.play(FadeIn(line), run_time=1.2)
 
         hwb_note_box = RoundedRectangle(corner_radius=0.12, width=11.5, height=1.0,
-                                         fill_color=PANEL, fill_opacity=0.9,
-                                         stroke_color=ACCENT_PINK, stroke_width=1.5)
+                                        fill_color=PANEL, fill_opacity=0.9,
+                                        stroke_color=ACCENT_PINK, stroke_width=1.5)
         hwb_note_box.to_edge(DOWN, buff=0.3)
         hwb_note = Text(
             "All three are device-dependent and perceptually non-uniform  →  prefer OKLch for color work",
@@ -2280,7 +2585,7 @@ class PerceptualProblemsScene(Scene):
         self.camera.background_color = BG
 
         ch = Text("XIII.  The Perceptual Problem", font_size=44,
-                   color=ACCENT_PINK, weight=BOLD)
+                  color=ACCENT_PINK, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
 
@@ -2294,10 +2599,10 @@ class PerceptualProblemsScene(Scene):
         for i in range(n):
             H = i / n
             r, g, b = hsv_to_rgb(H, 1.0, 1.0)
-            rect = Rectangle(width=bw/n+0.005, height=0.55,
-                             fill_color=rgb_to_hex([r,g,b]), fill_opacity=1,
+            rect = Rectangle(width=bw / n + 0.005, height=0.55,
+                             fill_color=rgb_to_hex([r, g, b]), fill_opacity=1,
                              stroke_width=0)
-            rect.move_to(LEFT*bw/2 + RIGHT*(i*bw/n + bw/n/2) + UP*0.8)
+            rect.move_to(LEFT * bw / 2 + RIGHT * (i * bw / n + bw / n / 2) + UP * 0.8)
             hue_bar.add(rect)
         self.play(FadeIn(hue_bar, lag_ratio=0.003, run_time=1.5))
 
@@ -2329,9 +2634,9 @@ class PerceptualProblemsScene(Scene):
         self.play(Create(curve, run_time=1.5))
         self.play(Create(ideal), FadeIn(ideal_lbl))
 
-        y_dot = Dot(axes.c2p(1/6, hue_to_okL(1/6)),
+        y_dot = Dot(axes.c2p(1 / 6, hue_to_okL(1 / 6)),
                     color=ACCENT_YELLOW, radius=0.07)
-        b_dot = Dot(axes.c2p(2/3, hue_to_okL(2/3)),
+        b_dot = Dot(axes.c2p(2 / 3, hue_to_okL(2 / 3)),
                     color="#4477ee", radius=0.07)
         y_ann = Text("Yellow", font_size=13, color=ACCENT_YELLOW)
         y_ann.next_to(y_dot, UP, buff=0.08)
@@ -2344,7 +2649,7 @@ class PerceptualProblemsScene(Scene):
             "\"Equal\" HSV steps → wildly unequal perceived changes!",
             font_size=22, color=ACCENT_PINK)
         verdict.to_edge(DOWN, buff=0.3)
-        self.play(FadeIn(verdict, shift=UP*0.2))
+        self.play(FadeIn(verdict, shift=UP * 0.2))
         self.wait(6)
         self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
@@ -2357,23 +2662,23 @@ class CIELABDerivationScene(Scene):
         self.camera.background_color = BG
 
         ch = Text("XIV.  Deriving CIELAB  (1976)", font_size=42,
-                   color=ACCENT_PURPLE, weight=BOLD)
+                  color=ACCENT_PURPLE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
-        self.play(FadeIn(ch, shift=DOWN*0.2))
+        self.play(FadeIn(ch, shift=DOWN * 0.2))
 
         # Key idea
         idea_box = RoundedRectangle(corner_radius=0.12, width=10, height=1.1,
-                                     fill_color=PANEL, fill_opacity=0.9,
-                                     stroke_color=ACCENT_PURPLE, stroke_width=1.5)
-        idea_box.move_to(UP*1.2)
+                                    fill_color=PANEL, fill_opacity=0.9,
+                                    stroke_color=ACCENT_PURPLE, stroke_width=1.5)
+        idea_box.move_to(UP * 1.2)
         idea = Text("Key insight: perceived brightness ≈ cube root of luminance",
-                     font_size=21, color=ACCENT_YELLOW)
+                    font_size=21, color=ACCENT_YELLOW)
         idea.move_to(idea_box)
         self.play(FadeIn(idea_box), FadeIn(idea))
 
         # f(t) function
         ft_title = Text("The nonlinear transfer function:", font_size=19, color=TEXT_PRI)
-        ft_title.move_to(LEFT*2.5 + UP*0.3)
+        ft_title.move_to(LEFT * 2.5 + UP * 0.3)
         ft_eq = MathTex(
             r"f(t) = \begin{cases}"
             r"\sqrt[3]{t} & t > \delta^3 \\"
@@ -2381,7 +2686,7 @@ class CIELABDerivationScene(Scene):
             r"\end{cases}",
             font_size=24, color=TEXT_PRI)
         delta_eq = MathTex(r"\delta = \frac{6}{29} \approx 0.207",
-                            font_size=20, color=TEXT_SEC)
+                           font_size=20, color=TEXT_SEC)
         ft_eq.next_to(ft_title, DOWN, buff=0.25)
         delta_eq.next_to(ft_eq, DOWN, buff=0.15)
         self.play(FadeIn(ft_title), Write(ft_eq, run_time=1.5), FadeIn(delta_eq))
@@ -2393,18 +2698,18 @@ class CIELABDerivationScene(Scene):
             axis_config={"color": GRID_COL, "stroke_width": 1.5,
                          "include_numbers": True, "font_size": 14,
                          "decimal_number_config": {"num_decimal_places": 1}})
-        axes.move_to(RIGHT*3 + DOWN*0.3)
+        axes.move_to(RIGHT * 3 + DOWN * 0.3)
 
         def f_of_t(t):
-            d = 6/29
-            return np.cbrt(t) if t > d**3 else t/(3*d**2) + 4/29
+            d = 6 / 29
+            return np.cbrt(t) if t > d ** 3 else t / (3 * d ** 2) + 4 / 29
 
         f_plot = axes.plot(f_of_t, color=ACCENT_PURPLE, stroke_width=3,
                            x_range=[0.001, 1.02, 0.005])
         cbrt_plot = axes.plot(lambda t: np.cbrt(t), color=ACCENT_ORANGE,
                               stroke_width=2, x_range=[0.001, 1.02, 0.01])
-        lin_seg = axes.plot(lambda t: t/(3*(6/29)**2) + 4/29, color="#888888",
-                            stroke_width=1.5, x_range=[0, (6/29)**3 + 0.01, 0.001])
+        lin_seg = axes.plot(lambda t: t / (3 * (6 / 29) ** 2) + 4 / 29, color="#888888",
+                            stroke_width=1.5, x_range=[0, (6 / 29) ** 3 + 0.01, 0.001])
 
         cbrt_lbl = MathTex(r"\sqrt[3]{t}", font_size=18, color=ACCENT_ORANGE)
         cbrt_lbl.move_to(axes.c2p(0.92, 1.03))
@@ -2444,17 +2749,17 @@ class CIELABSolidScene(ThreeDScene):
     def construct(self):
         self.camera.background_color = BG
         ch = Text("XV.  The CIELAB Color Solid", font_size=42,
-                   color=ACCENT_PURPLE, weight=BOLD)
+                  color=ACCENT_PURPLE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.add_fixed_in_frame_mobjects(ch)
-        self.play(FadeIn(ch, shift=DOWN*0.2))
+        self.play(FadeIn(ch, shift=DOWN * 0.2))
 
-        self.set_camera_orientation(phi=65*DEGREES, theta=-40*DEGREES)
+        self.set_camera_orientation(phi=65 * DEGREES, theta=-40 * DEGREES)
 
         pts = generate_gamut_surface(res=16)
         lab_dots = VGroup()
         sc_ab = 0.032
-        sc_L  = 0.042
+        sc_L = 0.042
 
         for srgb in pts:
             L, a, bv = srgb_to_cielab(*srgb)
@@ -2471,9 +2776,9 @@ class CIELABSolidScene(ThreeDScene):
         #                    ([[0,-3.5,0],[0,3.5,0]],),
         #                    ([[0,0,-2.5],[0,0,2.5]],)]:
         #     pass
-        ax_a = Line3D([-3.5,0,0], [3.5,0,0], color=GRID_COL, stroke_width=1)
-        ax_b = Line3D([0,-3.5,0], [0,3.5,0], color=GRID_COL, stroke_width=1)
-        ax_L = Line3D([0,0,-2.5], [0,0,2.5], color=GRID_COL, stroke_width=1)
+        ax_a = Line3D([-3.5, 0, 0], [3.5, 0, 0], color=GRID_COL, stroke_width=1)
+        ax_b = Line3D([0, -3.5, 0], [0, 3.5, 0], color=GRID_COL, stroke_width=1)
+        ax_L = Line3D([0, 0, -2.5], [0, 0, 2.5], color=GRID_COL, stroke_width=1)
 
         al = Text("a*  (green↔red)", font_size=15, color="#cc66cc")
         al.move_to([3.8, 0, 0])
@@ -2488,10 +2793,10 @@ class CIELABSolidScene(ThreeDScene):
         self.play(FadeIn(al), FadeIn(bll), FadeIn(Ll))
         self.play(FadeIn(lab_dots, lag_ratio=0.001, run_time=3))
 
-        self.move_camera(theta=-40*DEGREES + TAU, run_time=14, rate_func=smooth)
+        self.move_camera(theta=-40 * DEGREES + TAU, run_time=14, rate_func=smooth)
 
         note = Text("Notice the tilted, irregular shape — especially near blue",
-                     font_size=20, color=ACCENT_PINK)
+                    font_size=20, color=ACCENT_PINK)
         note.to_edge(DOWN, buff=0.4)
         self.add_fixed_in_frame_mobjects(note)
         self.play(FadeIn(note))
@@ -2507,14 +2812,14 @@ class DeltaEScene(Scene):
         self.camera.background_color = BG
 
         ch = Text("XVI.  ΔE: Measuring Color Difference", font_size=42,
-                   color=ACCENT_PURPLE, weight=BOLD)
+                  color=ACCENT_PURPLE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
 
         # ── Act 1: Live ΔE demonstration ──
-        ref_rgb  = np.array([0.80, 0.35, 0.10])
-        end_rgb  = np.array([0.10, 0.55, 0.80])
-        ref_lab  = srgb_to_cielab(*ref_rgb)
+        ref_rgb = np.array([0.80, 0.35, 0.10])
+        end_rgb = np.array([0.10, 0.55, 0.80])
+        ref_lab = srgb_to_cielab(*ref_rgb)
 
         t_tracker = ValueTracker(0.0)
 
@@ -2523,9 +2828,9 @@ class DeltaEScene(Scene):
             return np.clip(ref_rgb * (1 - t) + end_rgb * t, 0, 1)
 
         ref_swatch = Rectangle(width=2.2, height=1.5,
-                                fill_color=rgb_to_hex(ref_rgb),
-                                fill_opacity=1, stroke_width=2,
-                                stroke_color=TEXT_SEC)
+                               fill_color=rgb_to_hex(ref_rgb),
+                               fill_opacity=1, stroke_width=2,
+                               stroke_color=TEXT_SEC)
         ref_swatch.move_to(LEFT * 3.5 + UP * 1.0)
         ref_lbl = Text("Reference", font_size=15, color=TEXT_SEC)
         ref_lbl.next_to(ref_swatch, DOWN, buff=0.12)
@@ -2550,6 +2855,7 @@ class DeltaEScene(Scene):
             mob.set_value(de)
             mob.set_color(ACCENT_GREEN if de < 1.0 else
                           ACCENT_YELLOW if de < 2.0 else MUTED_RED)
+
         de_num.add_updater(update_de)
 
         thresh_text = Text("imperceptible", font_size=16, color=ACCENT_GREEN)
@@ -2566,6 +2872,7 @@ class DeltaEScene(Scene):
             else:
                 mob.become(Text("clearly noticeable", font_size=16,
                                 color=MUTED_RED).move_to(mob))
+
         thresh_text.add_updater(update_thresh)
 
         self.play(FadeIn(ref_swatch), FadeIn(ref_lbl))
@@ -2576,7 +2883,7 @@ class DeltaEScene(Scene):
         thresh_text.remove_updater(update_thresh)
         self.wait(1.5)
         self.play(*[FadeOut(m) for m in [ref_swatch, ref_lbl, cand_swatch, cand_lbl,
-                                          de_label, de_num, thresh_text]], run_time=1.2)
+                                         de_label, de_num, thresh_text]], run_time=1.2)
 
         # ── Act 2: Formulas ──
         form_title = Text("The math:", font_size=20, color=TEXT_PRI)
@@ -2590,7 +2897,7 @@ class DeltaEScene(Scene):
         self.play(Write(eq76, run_time=1.5))
 
         eq00_intro = Text("CIEDE2000 adds perceptual weighting (Sharma et al. 2005):",
-                           font_size=17, color=TEXT_SEC)
+                          font_size=17, color=TEXT_SEC)
         eq00_intro.next_to(eq76, DOWN, buff=0.4)
         self.play(FadeIn(eq00_intro))
 
@@ -2608,18 +2915,18 @@ class DeltaEScene(Scene):
 
         # ── Act 3: Engineering tolerance table ──
         tbl_title = Text("Industry tolerance standards:", font_size=20,
-                          color=ACCENT_YELLOW)
+                         color=ACCENT_YELLOW)
         tbl_title.move_to(UP * 2.0)
         self.play(FadeIn(tbl_title))
 
         rows = [
             ("Printing / brand color matching", "ΔE₀₀  <  1.0", ACCENT_GREEN),
-            ("Medical imaging displays",          "ΔE₇₆  <  2.0", ACCENT_YELLOW),
-            ("Consumer display calibration",      "ΔE₀₀  <  3.0", ACCENT_ORANGE),
+            ("Medical imaging displays", "ΔE₇₆  <  2.0", ACCENT_YELLOW),
+            ("Consumer display calibration", "ΔE₀₀  <  3.0", ACCENT_ORANGE),
         ]
         row_grps = VGroup()
         for label, threshold, col in rows:
-            lbl_t = Text(label,     font_size=19, color=TEXT_PRI)
+            lbl_t = Text(label, font_size=19, color=TEXT_PRI)
             thr_t = Text(threshold, font_size=19, color=col, weight=BOLD)
             row = VGroup(lbl_t, thr_t).arrange(RIGHT, buff=0.6)
             row_grps.add(row)
@@ -2680,8 +2987,8 @@ class DeltaEScene(Scene):
         self.wait(3.5)
 
         de00_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
-                                     fill_color=PANEL, fill_opacity=0.9,
-                                     stroke_color=ACCENT_YELLOW, stroke_width=1.5)
+                                    fill_color=PANEL, fill_opacity=0.9,
+                                    stroke_color=ACCENT_YELLOW, stroke_width=1.5)
         de00_box.to_edge(DOWN, buff=0.25)
         de00_txt = VGroup(
             Text("R_T is the 'blue problem fix'  —  connects directly to CIELAB's achilles heel",
@@ -2704,17 +3011,17 @@ class CIELABProblemsScene(Scene):
         self.camera.background_color = BG
 
         ch = Text("XVII.  CIELAB's Achilles Heel", font_size=42,
-                   color=ACCENT_PINK, weight=BOLD)
+                  color=ACCENT_PINK, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
-        self.play(FadeIn(ch, shift=DOWN*0.2))
+        self.play(FadeIn(ch, shift=DOWN * 0.2))
 
         title = Text("Hue ring at constant lightness & chroma",
-                      font_size=20, color=TEXT_SEC)
+                     font_size=20, color=TEXT_SEC)
         title.next_to(ch, DOWN, buff=0.35)
         self.play(FadeIn(title))
 
         # CIELAB hue ring
-        center_l = LEFT*3.2 + DOWN*0.8
+        center_l = LEFT * 3.2 + DOWN * 0.8
         ring_r = 2.0
         n_ring = 80
         C_star, L_star = 50, 65
@@ -2728,7 +3035,7 @@ class CIELABProblemsScene(Scene):
             srgb = xyz_to_srgb(X, Y, Z)
             col = rgb_to_hex(srgb)
             d = Dot(center_l + ring_r * np.array([np.cos(angle),
-                     np.sin(angle), 0]),
+                                                  np.sin(angle), 0]),
                     radius=0.14, color=col)
             ring_lab.add(d)
 
@@ -2737,14 +3044,14 @@ class CIELABProblemsScene(Scene):
         self.play(FadeIn(ring_lab, lag_ratio=0.01, run_time=1.5), FadeIn(lab_lbl))
 
         # OKLab hue ring
-        center_r = RIGHT*3.2 + DOWN*0.8
+        center_r = RIGHT * 3.2 + DOWN * 0.8
         ring_ok = VGroup()
         for i in range(n_ring):
             angle = TAU * i / n_ring
             L_ok, C_ok = 0.72, 0.12
-            col = oklab_to_hex(L_ok, C_ok*np.cos(angle), C_ok*np.sin(angle))
+            col = oklab_to_hex(L_ok, C_ok * np.cos(angle), C_ok * np.sin(angle))
             d = Dot(center_r + ring_r * np.array([np.cos(angle),
-                     np.sin(angle), 0]),
+                                                  np.sin(angle), 0]),
                     radius=0.14, color=col)
             ring_ok.add(d)
 
@@ -2754,7 +3061,7 @@ class CIELABProblemsScene(Scene):
 
         # Problem arrow
         prob_arrow = Arrow(
-            center_l + DOWN*1.2 + LEFT*1.2,
+            center_l + DOWN * 1.2 + LEFT * 1.2,
             center_l + ring_r * np.array([np.cos(4.2), np.sin(4.2), 0]),
             color=ACCENT_PINK, stroke_width=2.5, buff=0.15)
         prob_txt = Text("Blue → purple\nshift!", font_size=14, color=ACCENT_PINK)
@@ -2762,13 +3069,13 @@ class CIELABProblemsScene(Scene):
         self.play(GrowArrow(prob_arrow), FadeIn(prob_txt))
 
         # vs label
-        vs = Text("vs", font_size=28, color=TEXT_SEC).move_to(DOWN*0.8)
+        vs = Text("vs", font_size=28, color=TEXT_SEC).move_to(DOWN * 0.8)
         self.play(FadeIn(vs))
 
         verdict = Text("CIELAB's hues are not uniform — OKLab fixes this",
-                        font_size=22, color=ACCENT_TEAL)
+                       font_size=22, color=ACCENT_TEAL)
         verdict.to_edge(DOWN, buff=0.3)
-        self.play(FadeIn(verdict, shift=UP*0.2))
+        self.play(FadeIn(verdict, shift=UP * 0.2))
         self.wait(6)
         self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
@@ -2781,7 +3088,7 @@ class LChOKLchScene(Scene):
         self.camera.background_color = BG
 
         ch = Text("XVIII.  LCh and OKLch: Cylindrical Lab", font_size=42,
-                   color=ACCENT_BLUE, weight=BOLD)
+                  color=ACCENT_BLUE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
 
@@ -2795,7 +3102,7 @@ class LChOKLchScene(Scene):
             x_length=3.6, y_length=3.6, tips=False,
             axis_config={"color": GRID_COL, "stroke_width": 1.5})
         plane.move_to(LEFT * 3.3 + DOWN * 0.25)
-        xl = Text("a  (green↔red)",   font_size=11, color=TEXT_SEC)
+        xl = Text("a  (green↔red)", font_size=11, color=TEXT_SEC)
         xl.next_to(plane.x_axis, DOWN, buff=0.08)
         yl = Text("b  (blue↔yellow)", font_size=11, color=TEXT_SEC)
         yl.next_to(plane.y_axis, LEFT, buff=0.08)
@@ -2836,9 +3143,9 @@ class LChOKLchScene(Scene):
         self.play(FadeIn(css_title))
 
         css_line = Text("oklch( 72%   0.15   240deg )",
-                         font_size=17, color=ACCENT_GREEN)
+                        font_size=17, color=ACCENT_GREEN)
         css_annot = Text("         L      C       h",
-                          font_size=15, color=TEXT_SEC)
+                         font_size=15, color=TEXT_SEC)
         css_block = VGroup(css_line, css_annot).arrange(DOWN, buff=0.06)
         css_block.next_to(css_title, DOWN, buff=0.18)
         self.play(FadeIn(css_block))
@@ -2867,8 +3174,8 @@ class LChOKLchScene(Scene):
 
         dummy = [0, 0, 0]
         bar_data = [
-            (hue_sweep,       "Hue sweep  (L=0.72, C=0.15)"),
-            (chroma_sweep,    "Chroma sweep  (L=0.72, h=240°)"),
+            (hue_sweep, "Hue sweep  (L=0.72, C=0.15)"),
+            (chroma_sweep, "Chroma sweep  (L=0.72, h=240°)"),
             (lightness_sweep, "Lightness sweep  (C=0.12, h=240°)"),
         ]
         y_off = -0.15
@@ -2934,9 +3241,9 @@ class GamutMappingScene(Scene):
         )
         swatches = VGroup(
             Rectangle(width=2.8, height=1.4, fill_color=orig_col,
-                       fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.5),
+                      fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.5),
             Rectangle(width=2.8, height=1.4, fill_color=clip_col,
-                       fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.5),
+                      fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.5),
         )
         swatches.arrange(RIGHT, buff=1.0)
         swatches.move_to(DOWN * 0.2)
@@ -2999,7 +3306,7 @@ class GamutMappingScene(Scene):
         sw_group = VGroup()
         for i, (col, lbl, tcol) in enumerate(zip(sw_colors, sw_labels, sw_text_colors)):
             sw = Rectangle(width=2.6, height=2.0, fill_color=col,
-                            fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.5)
+                           fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.5)
             sw_lbl = Text(lbl, font_size=16, color=tcol, line_spacing=1.1)
             sw_lbl.next_to(sw, DOWN, buff=0.15)
             sw_group.add(VGroup(sw, sw_lbl))
@@ -3008,8 +3315,8 @@ class GamutMappingScene(Scene):
         self.play(FadeIn(sw_group, lag_ratio=0.3), run_time=1.2)
 
         gm_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
-                                   fill_color=PANEL, fill_opacity=0.9,
-                                   stroke_color=ACCENT_GREEN, stroke_width=1.5)
+                                  fill_color=PANEL, fill_opacity=0.9,
+                                  stroke_color=ACCENT_GREEN, stroke_width=1.5)
         gm_box.to_edge(DOWN, buff=0.3)
         gm_txt = Text(
             "Gamut mapping preserves hue and lightness  ·  clipping distorts both",
@@ -3028,21 +3335,21 @@ class OKLabDerivationScene(Scene):
         self.camera.background_color = BG
 
         ch = Text("XX.  Deriving OKLab  (2020)", font_size=44,
-                   color=ACCENT_TEAL, weight=BOLD)
+                  color=ACCENT_TEAL, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
-        self.play(FadeIn(ch, shift=DOWN*0.2))
+        self.play(FadeIn(ch, shift=DOWN * 0.2))
 
         credit = Text("Björn Ottosson — \"An OK Lab color space\"",
-                       font_size=18, color=TEXT_SEC)
+                      font_size=18, color=TEXT_SEC)
         credit.next_to(ch, DOWN, buff=0.3)
         self.play(FadeIn(credit))
 
         # Idea
         idea = Text("Take the simple IPT structure, but optimize its matrices "
-                     "against CAM16 perceptual data",
-                     font_size=18, color=ACCENT_YELLOW)
+                    "against CAM16 perceptual data",
+                    font_size=18, color=ACCENT_YELLOW)
         idea.next_to(credit, DOWN, buff=0.35)
-        self.play(FadeIn(idea, shift=DOWN*0.1))
+        self.play(FadeIn(idea, shift=DOWN * 0.1))
 
         # Pipeline boxes
         steps = [
@@ -3060,9 +3367,9 @@ class OKLabDerivationScene(Scene):
             txt = Text(label, font_size=13, color=col, line_spacing=1.0)
             txt.move_to(box)
             boxes.add(VGroup(box, txt))
-        boxes.arrange(RIGHT, buff=0.55).move_to(UP*0.1)
-        for i in range(len(boxes)-1):
-            arr = Arrow(boxes[i].get_right(), boxes[i+1].get_left(),
+        boxes.arrange(RIGHT, buff=0.55).move_to(UP * 0.1)
+        for i in range(len(boxes) - 1):
+            arr = Arrow(boxes[i].get_right(), boxes[i + 1].get_left(),
                         buff=0.07, color=TEXT_SEC, stroke_width=2.5,
                         max_tip_length_to_length_ratio=0.15)
             arrows.add(arr)
@@ -3094,13 +3401,13 @@ class OKLabDerivationScene(Scene):
             r"\begin{pmatrix}L\\a\\b\end{pmatrix}=\mathbf{M_2}"
             r"\begin{pmatrix}l'\\m'\\s'\end{pmatrix}",
             font_size=20, color=TEXT_PRI)
-        eqs = VGroup(eq1, eq2, eq3).arrange(RIGHT, buff=0.4).move_to(DOWN*1.3)
+        eqs = VGroup(eq1, eq2, eq3).arrange(RIGHT, buff=0.4).move_to(DOWN * 1.3)
         self.play(Write(eqs, run_time=2))
 
         # Optimization note
         opt_box = RoundedRectangle(corner_radius=0.1, width=10, height=0.9,
-                                    fill_color=PANEL, fill_opacity=0.9,
-                                    stroke_color=ACCENT_TEAL, stroke_width=1.5)
+                                   fill_color=PANEL, fill_opacity=0.9,
+                                   stroke_color=ACCENT_TEAL, stroke_width=1.5)
         opt_box.to_edge(DOWN, buff=0.3)
         opt = Text(
             "M₁ and M₂ optimized against CAM16-UCS lightness, chroma, and "
@@ -3150,8 +3457,8 @@ class OKLabDerivationScene(Scene):
                   FadeIn(oklab_col, lag_ratio=0.2), run_time=1.2)
 
         ipt_box = RoundedRectangle(corner_radius=0.12, width=11, height=0.9,
-                                    fill_color=PANEL, fill_opacity=0.9,
-                                    stroke_color=ACCENT_PURPLE, stroke_width=1.5)
+                                   fill_color=PANEL, fill_opacity=0.9,
+                                   stroke_color=ACCENT_PURPLE, stroke_width=1.5)
         ipt_box.to_edge(DOWN, buff=0.3)
         ipt_txt = Text(
             "OKLab = same architecture as IPT, but exponent 1/3 and re-optimized matrices",
@@ -3184,8 +3491,8 @@ class OKLabDerivationScene(Scene):
             self.play(FadeIn(item), run_time=1.2)
 
         cam_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.1,
-                                    fill_color=PANEL, fill_opacity=0.9,
-                                    stroke_color=ACCENT_YELLOW, stroke_width=1.5)
+                                   fill_color=PANEL, fill_opacity=0.9,
+                                   stroke_color=ACCENT_YELLOW, stroke_width=1.5)
         cam_box.to_edge(DOWN, buff=0.25)
         cam_txt = VGroup(
             Text("OKLab accuracy ≈ CAM16  ·  cost = two matrix multiplies + cube root",
@@ -3240,8 +3547,8 @@ class OKLabDerivationScene(Scene):
         self.wait(3.5)
 
         lim_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
-                                    fill_color=PANEL, fill_opacity=0.9,
-                                    stroke_color=ACCENT_GREEN, stroke_width=1.5)
+                                   fill_color=PANEL, fill_opacity=0.9,
+                                   stroke_color=ACCENT_GREEN, stroke_width=1.5)
         lim_box.to_edge(DOWN, buff=0.25)
         lim_txt = Text(
             "For most applications OKLab is the right choice  ·  use CAM16 when viewing conditions vary",
@@ -3279,17 +3586,17 @@ class PerceptualPhenomenaScene(Scene):
         # Show two swatches with same OKLab L but different C
         L_val = 0.60
         c_low_rgb = oklab_to_hex(L_val, 0.01, 0.01)  # near-achromatic
-        c_hi_rgb = oklab_to_hex(L_val, 0.18, -0.06)   # vivid red-orange
+        c_hi_rgb = oklab_to_hex(L_val, 0.18, -0.06)  # vivid red-orange
         c_hi2_rgb = oklab_to_hex(L_val, -0.05, 0.18)  # vivid green-yellow
 
         sw_group = VGroup()
         for col, lbl, desc in [
             (c_low_rgb, "L=0.60, C≈0.01\n(achromatic)", "Appears normal"),
-            (c_hi_rgb,  "L=0.60, C≈0.19\n(vivid red)", "Appears BRIGHTER!"),
+            (c_hi_rgb, "L=0.60, C≈0.19\n(vivid red)", "Appears BRIGHTER!"),
             (c_hi2_rgb, "L=0.60, C≈0.19\n(vivid green)", "Appears BRIGHTER!"),
         ]:
             sw = Rectangle(width=2.2, height=1.5, fill_color=col,
-                            fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.5)
+                           fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.5)
             sw_lbl = Text(lbl, font_size=14, color=TEXT_PRI, line_spacing=1.1)
             sw_lbl.next_to(sw, DOWN, buff=0.1)
             sw_desc = Text(desc, font_size=14, color=TEXT_SEC)
@@ -3334,7 +3641,7 @@ class PerceptualPhenomenaScene(Scene):
             ro, go, bxo = oklab_to_linear_srgb(Lo, ao, bo)
             col = rgb_to_hex(np.clip(linear_to_srgb(np.clip([ro, go, bxo], 0, 1)), 0, 1))
             sw = Rectangle(width=1.1, height=0.9, fill_color=col,
-                            fill_opacity=1, stroke_width=0)
+                           fill_opacity=1, stroke_width=0)
             blue_row.add(sw)
         blue_row.arrange(RIGHT, buff=0.05)
         blue_row.move_to(LEFT * 2.0 + DOWN * 0.2)
@@ -3353,7 +3660,7 @@ class PerceptualPhenomenaScene(Scene):
             ro, go, bxo = oklab_to_linear_srgb(Lo, ao, bo)
             col = rgb_to_hex(np.clip(linear_to_srgb(np.clip([ro, go, bxo], 0, 1)), 0, 1))
             sw = Rectangle(width=1.1, height=0.9, fill_color=col,
-                            fill_opacity=1, stroke_width=0)
+                           fill_opacity=1, stroke_width=0)
             yellow_row.add(sw)
         yellow_row.arrange(RIGHT, buff=0.05)
         yellow_row.move_to(LEFT * 2.0 + DOWN * 1.6)
@@ -3398,8 +3705,8 @@ class PerceptualPhenomenaScene(Scene):
         self.wait(3.5)
 
         phenom_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.0,
-                                       fill_color=PANEL, fill_opacity=0.9,
-                                       stroke_color=ACCENT_PURPLE, stroke_width=1.5)
+                                      fill_color=PANEL, fill_opacity=0.9,
+                                      stroke_color=ACCENT_PURPLE, stroke_width=1.5)
         phenom_box.to_edge(DOWN, buff=0.25)
         phenom_txt = Text(
             "These phenomena explain why no simple 3D formula perfectly models human color perception",
@@ -3417,12 +3724,12 @@ class OKLabSolidScene(ThreeDScene):
     def construct(self):
         self.camera.background_color = BG
         ch = Text("XXII.  The OKLab Color Solid", font_size=42,
-                   color=ACCENT_TEAL, weight=BOLD)
+                  color=ACCENT_TEAL, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.add_fixed_in_frame_mobjects(ch)
-        self.play(FadeIn(ch, shift=DOWN*0.2))
+        self.play(FadeIn(ch, shift=DOWN * 0.2))
 
-        self.set_camera_orientation(phi=65*DEGREES, theta=-40*DEGREES)
+        self.set_camera_orientation(phi=65 * DEGREES, theta=-40 * DEGREES)
 
         pts = generate_gamut_surface(res=16)
         ok_dots = VGroup()
@@ -3439,9 +3746,9 @@ class OKLabSolidScene(ThreeDScene):
             d.set_opacity(0.85)
             ok_dots.add(d)
 
-        ax_a = Line3D([-3,0,0], [3,0,0], color=GRID_COL, stroke_width=1)
-        ax_b = Line3D([0,-3,0], [0,3,0], color=GRID_COL, stroke_width=1)
-        ax_L = Line3D([0,0,-4], [0,0,4], color=GRID_COL, stroke_width=1)
+        ax_a = Line3D([-3, 0, 0], [3, 0, 0], color=GRID_COL, stroke_width=1)
+        ax_b = Line3D([0, -3, 0], [0, 3, 0], color=GRID_COL, stroke_width=1)
+        ax_L = Line3D([0, 0, -4], [0, 0, 4], color=GRID_COL, stroke_width=1)
 
         al = Text("a", font_size=18, color="#cc6666").move_to([3.3, 0, 0])
         bll = Text("b", font_size=18, color="#ccaa33").move_to([0, 3.3, 0])
@@ -3453,10 +3760,10 @@ class OKLabSolidScene(ThreeDScene):
         self.play(FadeIn(al), FadeIn(bll), FadeIn(Ll))
         self.play(FadeIn(ok_dots, lag_ratio=0.001, run_time=3))
 
-        self.move_camera(theta=-40*DEGREES + TAU, run_time=14, rate_func=smooth)
+        self.move_camera(theta=-40 * DEGREES + TAU, run_time=14, rate_func=smooth)
 
         note = Text("Smoother, more symmetric — perceptually uniform in all directions",
-                     font_size=20, color=ACCENT_TEAL)
+                    font_size=20, color=ACCENT_TEAL)
         note.to_edge(DOWN, buff=0.4)
         self.add_fixed_in_frame_mobjects(note)
         self.play(FadeIn(note))
@@ -3471,33 +3778,33 @@ class ColorSpaceComparisonScene(ThreeDScene):
     def construct(self):
         self.camera.background_color = BG
         ch = Text("XXIII.  3D Comparison: RGB · CIELAB · OKLab", font_size=38,
-                   color=ACCENT_GREEN, weight=BOLD)
+                  color=ACCENT_GREEN, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.add_fixed_in_frame_mobjects(ch)
-        self.play(FadeIn(ch, shift=DOWN*0.2))
+        self.play(FadeIn(ch, shift=DOWN * 0.2))
 
         # phi=75° gives a slight overhead angle to show 3D depth;
         # theta=90° puts the camera on the +Y axis so the X-axis (along which
         # the three solids are arranged) runs perfectly left–right in the frame.
-        self.set_camera_orientation(phi=75*DEGREES, theta=90*DEGREES)
+        self.set_camera_orientation(phi=75 * DEGREES, theta=90 * DEGREES)
 
         pts = generate_gamut_volume(res=8)
-        sc_rgb  = 3.0
-        sc_lab  = 0.025
+        sc_rgb = 3.0
+        sc_lab = 0.025
         sc_labL = 0.033
-        sc_ok   = 5.5
+        sc_ok = 5.5
 
         # ── Auto-fit: measure x half-widths from raw data, then scale ──
         _rgb_hw = max(abs((s[0] - 0.5) * sc_rgb) for s in pts)
         _lab_hw = max(abs(srgb_to_cielab(*s)[1] * sc_lab) for s in pts)
-        _ok_hw  = max(abs(linear_srgb_to_oklab(
-                        *srgb_to_linear(np.array(s)))[1] * sc_ok)
-                      for s in pts)
-        max_hw    = max(_rgb_hw, _lab_hw, _ok_hw)
-        GAP       = 0.9                            # gap between solids
-        target_hw = (13.0 - 2 * GAP) / 6          # half-width each solid
-        fit       = target_hw / max_hw             # uniform scale factor
-        offset    = 2 * target_hw + GAP            # centre-to-centre distance
+        _ok_hw = max(abs(linear_srgb_to_oklab(
+            *srgb_to_linear(np.array(s)))[1] * sc_ok)
+                     for s in pts)
+        max_hw = max(_rgb_hw, _lab_hw, _ok_hw)
+        GAP = 0.9  # gap between solids
+        target_hw = (13.0 - 2 * GAP) / 6  # half-width each solid
+        fit = target_hw / max_hw  # uniform scale factor
+        offset = 2 * target_hw + GAP  # centre-to-centre distance
 
         # ── Build groups centred at origin, then shift to final positions ──
         # Camera on +Y (theta=90°) ⟹ +X appears LEFT in the frame, so:
@@ -3514,7 +3821,7 @@ class ColorSpaceComparisonScene(ThreeDScene):
         lab_grp = VGroup()
         for s in pts:
             L, a, bv = srgb_to_cielab(*s)
-            d = Dot3D([a*sc_lab*fit, bv*sc_lab*fit, (L-50)*sc_labL*fit],
+            d = Dot3D([a * sc_lab * fit, bv * sc_lab * fit, (L - 50) * sc_labL * fit],
                       radius=0.03, color=rgb_to_hex(s))
             d.set_opacity(0.75)
             lab_grp.add(d)
@@ -3524,14 +3831,14 @@ class ColorSpaceComparisonScene(ThreeDScene):
         for s in pts:
             lin = srgb_to_linear(np.array(s))
             L, a, bv = linear_srgb_to_oklab(*lin)
-            d = Dot3D([a*sc_ok*fit, bv*sc_ok*fit, (L-0.5)*sc_ok*fit],
+            d = Dot3D([a * sc_ok * fit, bv * sc_ok * fit, (L - 0.5) * sc_ok * fit],
                       radius=0.03, color=rgb_to_hex(s))
             d.set_opacity(0.75)
             ok_grp.add(d)
         ok_grp.shift(np.array([-offset, 0, 0]))
 
         # Label z: place below the tallest solid's bottom edge
-        lbl_z = -(max(0.5*sc_rgb, 50*sc_labL, 0.5*sc_ok) * fit + 0.45)
+        lbl_z = -(max(0.5 * sc_rgb, 50 * sc_labL, 0.5 * sc_ok) * fit + 0.45)
 
         rgb_lbl = Text("RGB", font_size=18, color=ACCENT_BLUE, weight=BOLD)
         rgb_lbl.move_to([+offset, 0, lbl_z])
@@ -3561,7 +3868,7 @@ class ColorSpaceComparisonScene(ThreeDScene):
         )
 
         note = Text("Same colors, three shapes — OKLab is the most regular",
-                     font_size=20, color=ACCENT_GREEN)
+                    font_size=20, color=ACCENT_GREEN)
         note.to_edge(DOWN, buff=0.4)
         self.add_fixed_in_frame_mobjects(note)
         self.play(FadeIn(note))
@@ -3577,9 +3884,9 @@ class GradientComparisonScene(Scene):
         self.camera.background_color = BG
 
         ch = Text("XXIV.  Gradient Quality Test", font_size=42,
-                   color=ACCENT_GREEN, weight=BOLD)
+                  color=ACCENT_GREEN, weight=BOLD)
         ch.to_edge(UP, buff=0.4)
-        self.play(FadeIn(ch, shift=DOWN*0.2))
+        self.play(FadeIn(ch, shift=DOWN * 0.2))
 
         pairs = [
             ([0.0, 0.4, 1.0], [1.0, 0.8, 0.0], "Blue → Yellow"),
@@ -3587,21 +3894,21 @@ class GradientComparisonScene(Scene):
             ([1.0, 1.0, 1.0], [0.0, 0.2, 0.73], "White → Blue"),
         ]
         methods = [
-            ("sRGB",  srgb_blend,      ACCENT_ORANGE),
-            ("HSV",   hsv_blend_fn,    ACCENT_PINK),
-            ("OKLab", oklab_blend_fn,  ACCENT_TEAL),
-            ("OKLch", oklch_blend_fn,  ACCENT_GREEN),
+            ("sRGB", srgb_blend, ACCENT_ORANGE),
+            ("HSV", hsv_blend_fn, ACCENT_PINK),
+            ("OKLab", oklab_blend_fn, ACCENT_TEAL),
+            ("OKLch", oklch_blend_fn, ACCENT_GREEN),
         ]
 
         all_items = VGroup()
         y_pos = 2.2
         for c1, c2, pair_name in pairs:
             pl = Text(pair_name, font_size=15, color=TEXT_SEC)
-            pl.move_to(LEFT*6 + UP*y_pos)
+            pl.move_to(LEFT * 6 + UP * y_pos)
             all_items.add(pl)
             for j, (mn, fn, mc) in enumerate(methods):
                 bar = make_gradient_bar(fn, c1, c2, n=90, width=9.5, height=0.32)
-                bar.move_to(RIGHT*0.3 + UP*(y_pos - j*0.40))
+                bar.move_to(RIGHT * 0.3 + UP * (y_pos - j * 0.40))
                 lbl = Text(mn, font_size=12, color=mc,
                            weight=BOLD if mn in ("OKLab", "OKLch") else NORMAL)
                 lbl.next_to(bar, LEFT, buff=0.12)
@@ -3614,14 +3921,14 @@ class GradientComparisonScene(Scene):
             idx += 1
             for _ in range(4):
                 self.play(FadeIn(all_items[idx], lag_ratio=0.003),
-                          FadeIn(all_items[idx+1]), run_time=0.45)
+                          FadeIn(all_items[idx + 1]), run_time=0.45)
                 idx += 2
             self.wait(0.2)
 
         verdict = Text("OKLab / OKLch: no mud, no hue shifts, perceptually smooth",
-                        font_size=22, color=ACCENT_TEAL)
+                       font_size=22, color=ACCENT_TEAL)
         verdict.to_edge(DOWN, buff=0.3)
-        self.play(FadeIn(verdict, shift=UP*0.2))
+        self.play(FadeIn(verdict, shift=UP * 0.2))
         self.wait(6)
         self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.8)
 
@@ -3679,7 +3986,7 @@ class YCbCrScene(Scene):
                     if m is not ch], run_time=1.2)
 
         chan_title = Text("What the Three Channels Look Like",
-                         font_size=26, color=ACCENT_BLUE)
+                          font_size=26, color=ACCENT_BLUE)
         chan_title.next_to(ch, DOWN, buff=0.4)
         self.play(FadeIn(chan_title))
 
@@ -3699,10 +4006,10 @@ class YCbCrScene(Scene):
                     v = channel_fn(r, g, b)
                     v_disp = np.clip((v + 0.5) * 0.7 + 0.15, 0, 1)
                     c = Rectangle(width=cell_w + 0.01, height=cell_h + 0.01,
-                                   fill_color=rgb_to_hex([v_disp, v_disp, v_disp]),
-                                   fill_opacity=1, stroke_width=0)
+                                  fill_color=rgb_to_hex([v_disp, v_disp, v_disp]),
+                                  fill_opacity=1, stroke_width=0)
                     c.move_to([-img_w / 2 + (i + 0.5) * cell_w,
-                                -img_h / 2 + (j + 0.5) * cell_h, 0])
+                               -img_h / 2 + (j + 0.5) * cell_h, 0])
                     bar.add(c)
             bar.move_to(y_pos)
             lbl = Text(label, font_size=15, color=col)
@@ -3713,10 +4020,10 @@ class YCbCrScene(Scene):
             lambda r, g, b: 0.2126 * r + 0.7152 * g + 0.0722 * b,
             "Y' (luma)", ACCENT_YELLOW, LEFT * 3.5 + DOWN * 0.4)
         cb_bar, cb_lbl = make_image_bar(
-            lambda r, g, b: (b - (0.2126*r + 0.7152*g + 0.0722*b)) / 1.8556,
+            lambda r, g, b: (b - (0.2126 * r + 0.7152 * g + 0.0722 * b)) / 1.8556,
             "Cb (blue-diff)", ACCENT_TEAL, ORIGIN + DOWN * 0.4)
         cr_bar, cr_lbl = make_image_bar(
-            lambda r, g, b: (r - (0.2126*r + 0.7152*g + 0.0722*b)) / 1.5748,
+            lambda r, g, b: (r - (0.2126 * r + 0.7152 * g + 0.0722 * b)) / 1.5748,
             "Cr (red-diff)", ACCENT_ORANGE, RIGHT * 3.5 + DOWN * 0.4)
 
         for bar, lbl in [(y_bar, y_lbl), (cb_bar, cb_lbl), (cr_bar, cr_lbl)]:
@@ -3750,8 +4057,8 @@ class YCbCrScene(Scene):
         self.wait(3.5)
 
         ycbcr_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.3,
-                                      fill_color=PANEL, fill_opacity=0.9,
-                                      stroke_color=ACCENT_BLUE, stroke_width=1.5)
+                                     fill_color=PANEL, fill_opacity=0.9,
+                                     stroke_color=ACCENT_BLUE, stroke_width=1.5)
         ycbcr_box.to_edge(DOWN, buff=0.2)
         ycbcr_txt = VGroup(
             Text("Y'CbCr connects directly to gamma (primes) and opponent process (Cb≈blue-yellow, Cr≈red-green)",
@@ -3872,8 +4179,8 @@ class ToneMappingScene(Scene):
 
         # ── Act 3: ACES pipeline ──────────────────────────────────────
         aces_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.15,
-                                     fill_color=PANEL, fill_opacity=0.9,
-                                     stroke_color=ACCENT_ORANGE, stroke_width=1.5)
+                                    fill_color=PANEL, fill_opacity=0.9,
+                                    stroke_color=ACCENT_ORANGE, stroke_width=1.5)
         aces_box.to_edge(DOWN, buff=0.2)
         aces_txt = VGroup(
             Text("ACES = Academy Color Encoding System  ·  cinema standard since 2014",
@@ -3988,8 +4295,8 @@ class DisplayHDRScene(Scene):
         self.play(FadeIn(tech_rows, lag_ratio=0.25), run_time=1.2)
 
         hdr_box = RoundedRectangle(corner_radius=0.12, width=11, height=0.9,
-                                    fill_color=PANEL, fill_opacity=0.9,
-                                    stroke_color=ACCENT_YELLOW, stroke_width=1.5)
+                                   fill_color=PANEL, fill_opacity=0.9,
+                                   stroke_color=ACCENT_YELLOW, stroke_width=1.5)
         hdr_box.to_edge(DOWN, buff=0.3)
         hdr_txt = Text(
             "Process HDR content in linear light  ·  apply PQ or HLG only at final output",
@@ -4023,8 +4330,8 @@ class ICCPipelineScene(Scene):
         block_objs = VGroup()
         for label, col in blocks:
             box = RoundedRectangle(corner_radius=0.15, width=1.9, height=1.3,
-                                    fill_color=PANEL, fill_opacity=0.9,
-                                    stroke_color=col, stroke_width=2)
+                                   fill_color=PANEL, fill_opacity=0.9,
+                                   stroke_color=col, stroke_width=2)
             txt = Text(label, font_size=14, color=col, line_spacing=1.1)
             txt.move_to(box)
             block_objs.add(VGroup(box, txt))
@@ -4082,8 +4389,8 @@ class ICCPipelineScene(Scene):
 
         # ── Act 3: Engineering callout ────────────────────────────────
         icc_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.3,
-                                    fill_color=PANEL, fill_opacity=0.9,
-                                    stroke_color=ACCENT_PURPLE, stroke_width=1.5)
+                                   fill_color=PANEL, fill_opacity=0.9,
+                                   stroke_color=ACCENT_PURPLE, stroke_width=1.5)
         icc_box.to_edge(DOWN, buff=0.2)
         icc_txt = VGroup(
             Text("Raw pixel values are meaningless without a color profile",
@@ -4115,8 +4422,8 @@ class PracticalBlendingScene(Scene):
         halo_title.next_to(ch, DOWN, buff=0.45)
         self.play(FadeIn(halo_title))
 
-        c1 = np.array([1.0, 0.2, 0.1])   # warm red
-        c2 = np.array([0.1, 0.3, 1.0])   # cool blue
+        c1 = np.array([1.0, 0.2, 0.1])  # warm red
+        c2 = np.array([0.1, 0.3, 1.0])  # cool blue
         n = 60
         bar_w = 9.0
         sw = bar_w / n
@@ -4128,13 +4435,13 @@ class PracticalBlendingScene(Scene):
             srgb_col = srgb_blend(c1, c2, t)
             lin_col = linear_blend(c1, c2, t)
             r1 = Rectangle(width=sw + 0.02, height=0.65,
-                            fill_color=rgb_to_hex(srgb_col), fill_opacity=1,
-                            stroke_width=0)
+                           fill_color=rgb_to_hex(srgb_col), fill_opacity=1,
+                           stroke_width=0)
             r1.move_to(LEFT * bar_w / 2 + RIGHT * (i * sw + sw / 2) + UP * 0.4)
             srgb_bar.add(r1)
             r2 = Rectangle(width=sw + 0.02, height=0.65,
-                            fill_color=rgb_to_hex(lin_col), fill_opacity=1,
-                            stroke_width=0)
+                           fill_color=rgb_to_hex(lin_col), fill_opacity=1,
+                           stroke_width=0)
             r2.move_to(LEFT * bar_w / 2 + RIGHT * (i * sw + sw / 2) + DOWN * 0.5)
             lin_bar_blend.add(r2)
 
@@ -4204,8 +4511,8 @@ class PracticalBlendingScene(Scene):
             y_off += 0.95
 
         blend_box = RoundedRectangle(corner_radius=0.12, width=11, height=0.85,
-                                      fill_color=PANEL, fill_opacity=0.9,
-                                      stroke_color=ACCENT_TEAL, stroke_width=1.5)
+                                     fill_color=PANEL, fill_opacity=0.9,
+                                     stroke_color=ACCENT_TEAL, stroke_width=1.5)
         blend_box.to_edge(DOWN, buff=0.25)
         blend_txt = Text(
             "Always blend in linear light  ·  OKLch avoids hue shifts through mid-range",
@@ -4224,15 +4531,15 @@ class RealWorldScene(Scene):
         self.camera.background_color = BG
 
         ch = Text("XXX.  OKLab in the Wild", font_size=42,
-                   color=ACCENT_ORANGE, weight=BOLD)
+                  color=ACCENT_ORANGE, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
-        self.play(FadeIn(ch, shift=DOWN*0.2))
+        self.play(FadeIn(ch, shift=DOWN * 0.2))
 
         adopters = [
-            ("Photoshop",     "Default gradient interpolation (2023+)"),
+            ("Photoshop", "Default gradient interpolation (2023+)"),
             ("CSS Color 4/5", "oklab() and oklch() in all browsers"),
             ("Unity / Godot", "Gradient system / color picker"),
-            ("Figma",         "Color blending engine"),
+            ("Figma", "Color blending engine"),
         ]
         items = VGroup()
         for name, desc in adopters:
@@ -4240,22 +4547,22 @@ class RealWorldScene(Scene):
             d = Text(f"  —  {desc}", font_size=16, color=TEXT_SEC)
             items.add(VGroup(n, d).arrange(RIGHT, buff=0.08))
         items.arrange(DOWN, buff=0.25, aligned_edge=LEFT)
-        items.move_to(LEFT*1.5 + UP*0.4)
+        items.move_to(LEFT * 1.5 + UP * 0.4)
         for item in items:
-            self.play(FadeIn(item, shift=RIGHT*0.3), run_time=0.35)
+            self.play(FadeIn(item, shift=RIGHT * 0.3), run_time=0.35)
 
         # OKLab wheel
-        wc = RIGHT*3.8
+        wc = RIGHT * 3.8
         wheel = VGroup()
         n_h, n_r = 60, 10
         max_rad = 1.7
         for ih in range(n_h):
-            for ir in range(1, n_r+1):
+            for ir in range(1, n_r + 1):
                 angle = TAU * ih / n_h
                 radius = max_rad * ir / n_r
                 C = 0.15 * ir / n_r
-                col = oklab_to_hex(0.75, C*np.cos(angle), C*np.sin(angle))
-                d = Dot(wc + radius*np.array([np.cos(angle), np.sin(angle), 0]),
+                col = oklab_to_hex(0.75, C * np.cos(angle), C * np.sin(angle))
+                d = Dot(wc + radius * np.array([np.cos(angle), np.sin(angle), 0]),
                         radius=0.09, color=col, fill_opacity=0.92)
                 wheel.add(d)
         wl = Text("OKLab Wheel", font_size=15, color=TEXT_SEC)
@@ -4264,13 +4571,15 @@ class RealWorldScene(Scene):
 
         # Spinning highlight
         hl = Circle(radius=0.2, color=WHITE, stroke_width=2.5, fill_opacity=0)
-        hl.move_to(wc + RIGHT*max_rad*0.7)
+        hl.move_to(wc + RIGHT * max_rad * 0.7)
         hl.t = 0
+
         def spin(m, dt):
             m.t += dt
             a = m.t * 0.7
             r = max_rad * 0.7
-            m.move_to(wc + r*np.array([np.cos(a), np.sin(a), 0]))
+            m.move_to(wc + r * np.array([np.cos(a), np.sin(a), 0]))
+
         hl.add_updater(spin)
         self.add(hl)
         self.wait(8)
@@ -4286,7 +4595,7 @@ class ColorBlindnessScene(Scene):
         self.camera.background_color = BG
 
         ch = Text("XXXI.  Color Blindness: Engineering for Accessibility",
-                   font_size=36, color=ACCENT_PINK, weight=BOLD)
+                  font_size=36, color=ACCENT_PINK, weight=BOLD)
         ch.to_edge(UP, buff=0.45)
         self.play(FadeIn(ch, shift=DOWN * 0.2))
 
@@ -4306,7 +4615,7 @@ class ColorBlindnessScene(Scene):
         self.play(FadeOut(stats), run_time=1.0)
 
         wheel_title = Text("How the OKLab color wheel appears under each condition:",
-                            font_size=17, color=TEXT_SEC)
+                           font_size=17, color=TEXT_SEC)
         wheel_title.move_to(UP * 2.3)
         self.play(FadeIn(wheel_title))
 
@@ -4331,13 +4640,13 @@ class ColorBlindnessScene(Scene):
             return grp
 
         wheel_configs = [
-            (np.array([-4.8, 0.2, 0]), None,                  "Normal",
+            (np.array([-4.8, 0.2, 0]), None, "Normal",
              TEXT_PRI),
             (np.array([-1.6, 0.2, 0]), simulate_deuteranopia, "Deuteranopia\n(red-green)",
              ACCENT_ORANGE),
-            (np.array([ 1.6, 0.2, 0]), simulate_protanopia,   "Protanopia\n(red-blind)",
+            (np.array([1.6, 0.2, 0]), simulate_protanopia, "Protanopia\n(red-blind)",
              ACCENT_PINK),
-            (np.array([ 4.8, 0.2, 0]), simulate_tritanopia,   "Tritanopia\n(blue-yellow)",
+            (np.array([4.8, 0.2, 0]), simulate_tritanopia, "Tritanopia\n(blue-yellow)",
              ACCENT_BLUE),
         ]
 
@@ -4411,7 +4720,7 @@ class ColorBlindnessScene(Scene):
         dark_txt = np.array([0.1, 0.1, 0.1])
         ratio = wcag_contrast(dark_txt, white_bg)
         ex_swatch = Rectangle(width=3.5, height=0.9, fill_color=rgb_to_hex(white_bg),
-                               fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.5)
+                              fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.5)
         ex_swatch.move_to(RIGHT * 3.5 + DOWN * 0.3)
         ex_lbl = Text(f"Dark on white: {ratio:.1f}:1  ✓ AAA",
                       font_size=17, color=rgb_to_hex(dark_txt))
@@ -4419,8 +4728,8 @@ class ColorBlindnessScene(Scene):
         self.play(FadeIn(ex_swatch), FadeIn(ex_lbl))
 
         apca_box = RoundedRectangle(corner_radius=0.12, width=11, height=1.15,
-                                     fill_color=PANEL, fill_opacity=0.9,
-                                     stroke_color=ACCENT_TEAL, stroke_width=1.5)
+                                    fill_color=PANEL, fill_opacity=0.9,
+                                    stroke_color=ACCENT_TEAL, stroke_width=1.5)
         apca_box.to_edge(DOWN, buff=0.2)
         apca_txt = VGroup(
             Text("WCAG 3.0 candidate: APCA uses lightness contrast, not ratio",
@@ -4464,7 +4773,7 @@ class PaletteGenerationScene(Scene):
             angle = (i / n_pal) * TAU - PI / 2
             pos = np.array([1.5 * np.cos(angle), 1.5 * np.sin(angle), 0])
             dot = Circle(radius=0.35, fill_color=rgb_to_hex(col),
-                          fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.5)
+                         fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.5)
             dot.move_to(pos + DOWN * 0.4)
             wheel_grp.add(dot)
         wheel_grp.move_to(LEFT * 3.0 + DOWN * 0.3)
@@ -4474,7 +4783,7 @@ class PaletteGenerationScene(Scene):
         swatch_row = VGroup()
         for col in pal_colors:
             sw = Rectangle(width=1.3, height=0.9, fill_color=rgb_to_hex(col),
-                            fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.0)
+                           fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.0)
             swatch_row.add(sw)
         swatch_row.arrange(RIGHT, buff=0.1)
         swatch_row.move_to(RIGHT * 2.0 + UP * 0.4)
@@ -4508,7 +4817,7 @@ class PaletteGenerationScene(Scene):
             pass_w = ratio_w >= 4.5
             pass_b = ratio_b >= 4.5
             sw = Rectangle(width=1.2, height=0.7, fill_color=rgb_to_hex(col),
-                            fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.0)
+                           fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.0)
             badge_w = Text(f"vs W: {ratio_w:.1f} {'✓' if pass_w else '✗'}",
                            font_size=15,
                            color=ACCENT_GREEN if pass_w else MUTED_RED)
@@ -4545,7 +4854,7 @@ class PaletteGenerationScene(Scene):
                 c_hex = rgb_to_hex(np.clip(linear_to_srgb(
                     np.clip([ro, go, bxo], 0, 1)), 0, 1))
                 sw = Rectangle(width=1.4, height=0.8, fill_color=c_hex,
-                                fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.0)
+                               fill_opacity=1, stroke_color=TEXT_SEC, stroke_width=1.0)
                 sw_row.add(sw)
             sw_row.arrange(RIGHT, buff=0.15)
             sw_row.next_to(lbl, RIGHT, buff=0.5)
@@ -4556,8 +4865,8 @@ class PaletteGenerationScene(Scene):
         show_harmony("Analogous  h−30°, h, h+30°", [-30, 0, 30], ACCENT_TEAL, -1.0)
 
         harm_box = RoundedRectangle(corner_radius=0.12, width=11, height=0.85,
-                                     fill_color=PANEL, fill_opacity=0.9,
-                                     stroke_color=ACCENT_PURPLE, stroke_width=1.5)
+                                    fill_color=PANEL, fill_opacity=0.9,
+                                    stroke_color=ACCENT_PURPLE, stroke_width=1.5)
         harm_box.to_edge(DOWN, buff=0.3)
         harm_txt = Text(
             "OKLch harmonies are perceptually equal — HSL/HSV harmonies are not",
@@ -4676,8 +4985,8 @@ class NumericalGotchasScene(Scene):
         self.wait(3.5)
 
         final_box = RoundedRectangle(corner_radius=0.12, width=11, height=0.9,
-                                      fill_color=PANEL, fill_opacity=0.9,
-                                      stroke_color=MUTED_RED, stroke_width=1.5)
+                                     fill_color=PANEL, fill_opacity=0.9,
+                                     stroke_color=MUTED_RED, stroke_width=1.5)
         final_box.to_edge(DOWN, buff=0.3)
         final_txt = Text(
             "Robust color math: clip in linear space · use endpoint interpolation · normalize Y",
@@ -4696,18 +5005,18 @@ class OutroScene(Scene):
         self.camera.background_color = BG
 
         st = Text("The Evolution of Color Spaces", font_size=36,
-                   color=TEXT_PRI, weight=BOLD)
+                  color=TEXT_PRI, weight=BOLD)
         st.to_edge(UP, buff=0.5)
         self.play(FadeIn(st))
 
         cards = [
             ("RGB / HSV", "1960s–70s\nDevice-oriented\nNot perceptually\nuniform",
              ACCENT_BLUE, "✗"),
-            ("CIE XYZ",   "1931\nFirst standard\nNot uniform\nBasis for all",
+            ("CIE XYZ", "1931\nFirst standard\nNot uniform\nBasis for all",
              ACCENT_PURPLE, "~"),
-            ("CIELAB",    "1976\nCube-root f(t)\nBetter but\nblue problems",
+            ("CIELAB", "1976\nCube-root f(t)\nBetter but\nblue problems",
              ACCENT_PURPLE, "~"),
-            ("OKLab",     "2020\nPerceptually uniform\nSimple · fast\nIndustry standard",
+            ("OKLab", "2020\nPerceptually uniform\nSimple · fast\nIndustry standard",
              ACCENT_TEAL, "✓"),
         ]
 
@@ -4717,21 +5026,21 @@ class OutroScene(Scene):
                                    fill_color=PANEL, fill_opacity=0.95,
                                    stroke_color=col, stroke_width=2.5)
             s = Text(sym, font_size=34,
-                     color=MUTED_RED if sym=="✗" else
-                           ACCENT_YELLOW if sym=="~" else ACCENT_GREEN)
-            s.move_to(box.get_top() + DOWN*0.35)
+                     color=MUTED_RED if sym == "✗" else
+                     ACCENT_YELLOW if sym == "~" else ACCENT_GREEN)
+            s.move_to(box.get_top() + DOWN * 0.35)
             t = Text(title, font_size=18, color=col, weight=BOLD)
             t.next_to(s, DOWN, buff=0.15)
             d = Text(desc, font_size=12, color=TEXT_SEC, line_spacing=1.2)
             d.next_to(t, DOWN, buff=0.2)
             cg.add(VGroup(box, s, t, d))
-        cg.arrange(RIGHT, buff=0.3).move_to(DOWN*0.1)
+        cg.arrange(RIGHT, buff=0.3).move_to(DOWN * 0.1)
 
         for card in cg:
-            self.play(FadeIn(card, shift=UP*0.25, scale=0.9), run_time=0.55)
+            self.play(FadeIn(card, shift=UP * 0.25, scale=0.9), run_time=0.55)
 
-        arr = Arrow(cg[0].get_bottom() + DOWN*0.2,
-                    cg[3].get_bottom() + DOWN*0.2,
+        arr = Arrow(cg[0].get_bottom() + DOWN * 0.2,
+                    cg[3].get_bottom() + DOWN * 0.2,
                     color=ACCENT_TEAL, stroke_width=3, buff=0)
         arr_lbl = Text("90 years of color science", font_size=15, color=TEXT_SEC)
         arr_lbl.next_to(arr, DOWN, buff=0.08)
@@ -4742,9 +5051,9 @@ class OutroScene(Scene):
         self.play(cg[3][0].animate.set_stroke(ACCENT_TEAL, 2.5), run_time=0.35)
 
         final = Text("Color is about perception — now we have the math to match.",
-                      font_size=24, color=TEXT_PRI)
+                     font_size=24, color=TEXT_PRI)
         final.to_edge(DOWN, buff=0.45)
-        self.play(FadeIn(final, shift=UP*0.3))
+        self.play(FadeIn(final, shift=UP * 0.3))
         self.wait(6)
 
         creds = VGroup(
@@ -4754,6 +5063,6 @@ class OutroScene(Scene):
                  font_size=13, color=TEXT_SEC),
             Text("Made with Manim Community Edition", font_size=13, color=TEXT_SEC),
         ).arrange(DOWN, buff=0.08).to_edge(DOWN, buff=0.25)
-        self.play(FadeOut(final), FadeIn(creds, shift=UP*0.15))
+        self.play(FadeOut(final), FadeIn(creds, shift=UP * 0.15))
         self.wait(5)
         self.play(*[FadeOut(m) for m in self.mobjects], run_time=1.5)
