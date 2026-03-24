@@ -58,6 +58,33 @@ CODEFONT = "Monospace"
 config.background_color = BG
 
 
+class TextWithSpaces(VGroup):
+    def __init__(self, text: str, **kwargs):
+        data = []
+        left_side = text.lstrip()
+        val = 'a' * (len(text) - len(left_side))
+        if val:
+            t_space = Text(val, **kwargs, opacity=0)
+            t_space.set_opacity(0)
+
+            data.append(t_space)
+
+        t = Text(text.strip(), **kwargs)
+
+        data.append(t)
+
+        right_side = text.rstrip()
+        val = 'a' * (len(text) - len(right_side))
+        if val:
+            t_space = Text(val, **kwargs, opacity=0)
+            t_space.set_opacity(0)
+
+            data.append(t_space)
+
+        super().__init__(*data)
+        self.arrange(RIGHT, buff=0)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  GRID WORLD HELPERS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -155,7 +182,7 @@ class CodePanel:
                 t_space.set_opacity(0)
 
                 t = Text(display.strip(), font=CODEFONT, font_size=font_size, color=C_TEXT)
-                t = VGroup(t_space, t ).arrange(RIGHT, buff=0)
+                t = VGroup(t_space, t).arrange(RIGHT, buff=0)
 
             if not raw.strip():
                 t.set_opacity(0)  # invisible spacer line
@@ -326,7 +353,7 @@ class WhatIsAGraphScene(Scene):
         verts = {}
         vlbls = {}
         for name, pos in positions.items():
-            d = Dot(pos, radius=0.2, color=C_VERTEX, z_index=2)
+            d = Dot(pos, radius=0.2, color=C_VERTEX, z_index=0)
             lb = Text(name, font_size=18, color=WHITE, weight=BOLD, z_index=3)
             lb.move_to(d)
             verts[name] = d
@@ -368,7 +395,7 @@ class WhatIsAGraphScene(Scene):
         for a, b in edge_pairs:
             line = Line(
                 verts[a].get_center(), verts[b].get_center(),
-                color=C_EDGE, stroke_width=2.5, stroke_opacity=0.7, z_index=1,
+                color=C_EDGE, stroke_width=2.5, stroke_opacity=0.7, z_index=0,
             )
             elines[(a, b)] = line
 
@@ -662,12 +689,14 @@ class BFSScene(Scene):
         paint_walls(cells, walls)
 
         start, goal = (1, 2), (6, 3)
-        s_dot = Dot(cells[start].get_center(), radius=0.12, color=C_START, z_index=5)
-        g_dot = Dot(cells[goal].get_center(), radius=0.12, color=C_GOAL, z_index=5)
-        s_lbl = Text("S", font_size=12, color=WHITE, weight=BOLD, z_index=6)
-        s_lbl.move_to(s_dot)
-        g_lbl = Text("G", font_size=12, color=WHITE, weight=BOLD, z_index=6)
-        g_lbl.move_to(g_dot)
+        s_dot = VGroup(
+            Dot(ORIGIN, radius=0.12, color=C_START),
+            Text("S", font_size=12, color=WHITE, weight=BOLD, z_index=6))
+        s_dot.move_to(cells[start].get_center())
+
+        g_dot = VGroup(Dot(ORIGIN, radius=0.12, color=C_GOAL),
+                       Text("G", font_size=12, color=WHITE, weight=BOLD, z_index=6))
+        g_dot.move_to(cells[goal].get_center())
 
         code_lines = [
             "frontier = Queue()",
@@ -704,7 +733,7 @@ class BFSScene(Scene):
             run_time=0.6,
         )
         self.play(
-            FadeIn(s_dot), FadeIn(s_lbl), FadeIn(g_dot), FadeIn(g_lbl),
+            FadeIn(s_dot), FadeIn(g_dot),
             FadeIn(code.get_group()), FadeIn(leg),
             run_time=0.6,
         )
@@ -1632,18 +1661,18 @@ class AStarScene(Scene):
         why = VGroup(
             Text("Dijkstra uses only cost_so_far",
                  font_size=15, color=C_COST),
-            Text("   Finds shortest paths but explores everywhere",
-                 font_size=13, color=GRAY_B),
-            Text(" ", font_size=6, color=BG),
-            Text("Greedy uses only heuristic",
-                 font_size=15, color=C_HEURISTIC),
-            Text("   Fast but can find non-optimal paths",
-                 font_size=13, color=GRAY_B),
-            Text(" ", font_size=6, color=BG),
-            Text("A* uses both: optimal AND focused!",
-                 font_size=16, color=C_ACCENT, weight=BOLD),
+            TextWithSpaces("   Finds shortest paths but explores everywhere",
+                           font_size=13, color=GRAY_B),
+            TextWithSpaces(" ", font_size=6, color=BG),
+            TextWithSpaces("Greedy uses only heuristic",
+                           font_size=15, color=C_HEURISTIC),
+            TextWithSpaces("   Fast but can find non-optimal paths",
+                           font_size=13, color=GRAY_B),
+            TextWithSpaces("a", font_size=6, color=BG).set_opacity(0),
+            TextWithSpaces("A* uses both: optimal AND focused!",
+                           font_size=16, color=C_ACCENT, weight=BOLD),
         ).arrange(DOWN, buff=0.12, aligned_edge=LEFT)
-        why.move_to(DOWN * 1.5)
+        why.next_to(sub_cost, DOWN, buff=0.2)
 
         self.play(FadeIn(idea, shift=DOWN * 0.2), run_time=0.5)
         self.play(
@@ -1672,8 +1701,8 @@ class AStarScene(Scene):
         paint_walls(cells, walls)
 
         start, goal = (1, 2), (6, 4)
-        s_dot = Dot(cells[start].get_center(), radius=0.11, color=C_START, z_index=5)
-        g_dot = Dot(cells[goal].get_center(), radius=0.11, color=C_GOAL, z_index=5)
+        s_dot = Dot(cells[start].get_center(), radius=0.11, color=C_START, z_index=0)
+        g_dot = Dot(cells[goal].get_center(), radius=0.11, color=C_GOAL, z_index=0)
         s_lbl = Text("S", font_size=11, color=WHITE, weight=BOLD, z_index=6)
         s_lbl.move_to(cells[start])
         g_lbl = Text("G", font_size=11, color=WHITE, weight=BOLD, z_index=6)
