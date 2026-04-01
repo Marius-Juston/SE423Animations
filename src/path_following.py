@@ -65,13 +65,15 @@ def save_simulation_gif():
     # Environment Setup
     grid = np.zeros((20, 20))
     grid[5:15, 10] = 1
+
+    grid[16:19, 10] = 1
     start_idx, goal_idx = (2, 2), (18, 18)
     path_points = np.array(a_star_2d(start_idx, goal_idx, grid)) * 1.0
 
     # Simulation Variables
     dt = 0.1
     state = np.array([path_points[0][0], path_points[0][1], 0.0])
-    controller = DifferentialDriveController(Kx=1.5, Ky=5.0, Ktheta=3.0, v_max=2.0, omega_max=1.0)
+    controller = DifferentialDriveController(Kx=1.5, Ky=5.0, Ktheta=2.5, v_max=2.0, omega_max=1.0)
     v_ref = 0.8
 
     trajectory_x, trajectory_y = [], []
@@ -87,12 +89,15 @@ def save_simulation_gif():
     target_dot, = ax.plot([], [], 'ro', markersize=8, label="Current Target")
     heading_line, = ax.plot([], [], 'g-', linewidth=2)
 
+    fig.tight_layout()
+
     ax.set_xlim(-1, 20)
     ax.set_ylim(-1, 20)
     ax.legend(loc='upper left')
 
     def update(frame):
         if sim_data['idx'] >= len(path_points):
+            print(frame)
             return line_traj, robot_dot, target_dot, heading_line
 
         # Current State & Target
@@ -125,11 +130,11 @@ def save_simulation_gif():
 
     # Create Animation
     # frames=200 is a safe estimate, repeat=False prevents looping in the processing
-    ani = FuncAnimation(fig, update, frames=250, blit=True, interval=50)
+    ani = FuncAnimation(fig, update, frames=150, blit=True, interval=50, repeat=True)
 
     print("Saving animation to robot_path.gif...")
     writer = PillowWriter(fps=20)
-    ani.save("robot_path.gif", writer=writer)
+    ani.save("robot_path.gif", writer=writer, dpi=300)
     print("Done!")
     plt.close(fig)
 
