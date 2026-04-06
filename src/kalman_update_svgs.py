@@ -59,7 +59,7 @@ ax1.plot(x, gaussian(x, mu_0, var_0), label=fr'$\mu={mu_0}$, $\sigma^2={var_0}$'
 ax1.fill_between(x, gaussian(x, mu_0, var_0), alpha=0.3, color='#1f77b4')
 ax1.legend()
 plt.tight_layout()
-fig1.savefig('01_initial_belief.svg', format='svg')
+fig1.savefig('01_initial_belief.svg', format='svg', transparent=True)
 
 # ==========================================
 # Figure 2: Prediction (Motion and Spreading)
@@ -76,7 +76,7 @@ ax2.annotate('', xy=(mu_pred, 0.1), xytext=(mu_0, 0.1),
 ax2.text((mu_0 + mu_pred)/2, 0.12, f'+u ({u})', ha='center', fontsize=12)
 ax2.legend()
 plt.tight_layout()
-fig2.savefig('02_prediction.svg', format='svg')
+fig2.savefig('02_prediction.svg', format='svg', transparent=True)
 
 # ==========================================
 # Figure 3: The Sensor's Opinion
@@ -90,7 +90,7 @@ ax3.plot(x, gaussian(x, z, var_sensor), color='#ff7f0e', label=rf'Sensor ($z={z}
 ax3.fill_between(x, gaussian(x, z, var_sensor), alpha=0.2, color='#ff7f0e')
 ax3.legend()
 plt.tight_layout()
-fig3.savefig('03_sensor_opinion.svg', format='svg')
+fig3.savefig('03_sensor_opinion.svg', format='svg', transparent=True)
 
 # ==========================================
 # Figure 4: The Magic of Multiplying Gaussians
@@ -108,7 +108,7 @@ ax4.text(1, 0.45, f'Kalman Gain (K) = {K:.2f}', fontsize=14, bbox=dict(facecolor
 
 ax4.legend()
 plt.tight_layout()
-fig4.savefig('04_fused_update.svg', format='svg')
+fig4.savefig('04_fused_update.svg', format='svg', transparent=True)
 
 print("Successfully generated 4 SVG files:")
 print("- 01_initial_belief.svg")
