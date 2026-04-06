@@ -103,7 +103,7 @@ def generate_covariance_svg():
     ax.legend(loc='lower right')
 
     plt.tight_layout()
-    plt.savefig('05_covariance_matrix.svg', format='svg')
+    plt.savefig('05_covariance_matrix.svg', format='svg', transparent=True)
     print("Successfully generated: 05_covariance_matrix.svg")
 
 
