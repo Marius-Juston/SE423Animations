@@ -101,7 +101,7 @@ ax1.text(0.5, 7.5, r'$\mathbf{P} = [[\sigma_x^2, \sigma_{xy}], [\sigma_{yx}, \si
 
 ax1.legend()
 plt.tight_layout()
-fig1.savefig('MD_01_initial_belief.svg', format='svg')
+fig1.savefig('MD_01_initial_belief.svg', format='svg', transparent=True)
 
 # ==========================================
 # Figure 2: Prediction (Shift, Stretch & Spread)
@@ -132,7 +132,7 @@ ax2.text(8, 1.0, r'$\mathbf{P}_{pred} = \mathbf{F}\mathbf{P}_{k-1}\mathbf{F}^T +
 
 ax2.legend()
 plt.tight_layout()
-fig2.savefig('MD_02_prediction.svg', format='svg')
+fig2.savefig('MD_02_prediction.svg', format='svg', transparent=True)
 
 # ==========================================
 # Figure 3: The Sensor's Opinion (Mapped to State Space)
@@ -155,7 +155,7 @@ ax3.text(0, -1.0, r'$\mathbf{S} = \mathbf{H}\mathbf{P}_{pred}\mathbf{H}^T + \mat
 
 ax3.legend()
 plt.tight_layout()
-fig3.savefig('MD_03_sensor_opinion.svg', format='svg')
+fig3.savefig('MD_03_sensor_opinion.svg', format='svg', transparent=True)
 
 # ==========================================
 # Figure 4: The Magic of Fusion (Shrinking Uncertainty)
@@ -182,7 +182,7 @@ ax4.text(-1, -1.0, r'$\mathbf{P}_k = (\mathbf{I} - \mathbf{K}\mathbf{H})\mathbf{
 
 ax4.legend(loc='lower right')
 plt.tight_layout()
-fig4.savefig('MD_04_fused_update.svg', format='svg')
+fig4.savefig('MD_04_fused_update.svg', format='svg', transparent=True)
 
 print("Successfully generated 4 Multi-Dimension (2D) Kalman Filter SVG files:")
 print("- MD_01_initial_belief.svg")
