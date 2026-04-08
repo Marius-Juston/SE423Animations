@@ -100,8 +100,8 @@ def sample_path(start_node, end_node, rho, step_size=0.05):
 def main():
     # Define initial and terminal SE(2) state configurations: q = (x, y, theta_in_degrees)
     # The nathanlct library specifically expects angles in degrees
-    q0 = (0.0, 0.0, 90.0)
-    q1 = (3.5, 3.2, -90.0)
+    q0 = (0.0, 0.0, -45.0)
+    q1 = (3.5, 2.2, -135.0)
 
     turning_radius = 2.5
 
