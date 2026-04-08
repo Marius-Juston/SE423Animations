@@ -337,6 +337,244 @@ class VisualResistor(VisualWire):
         self.scale(2.5)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# CMOS / Analog circuit primitives
+# ─────────────────────────────────────────────────────────────────────────────
+
+class VisualJunction(CircuitShape):
+    """Filled dot marking a wire T-junction."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.dot = Dot(radius=0.08, color=WHITE, fill_opacity=1.0)
+        self.add(self.dot)
+        self.set_active(False)
+
+    def set_active(self, is_active):
+        target = YELLOW if is_active else WHITE
+        if ANIMATE:
+            return self.dot.animate.set_color(target)
+        self.dot.set_color(target)
+
+
+class VisualVDD(CircuitShape):
+    """
+    VDD power supply symbol.
+    Terminal is at the origin (bottom); symbol extends upward.
+    """
+
+    def __init__(self, label: str = "VDD", **kwargs):
+        super().__init__(**kwargs)
+        stub = Line([0, 0, 0], [0, 0.18, 0], stroke_color=WHITE, stroke_width=2)
+        arrow = Arrow(
+            [0, 0.18, 0], [0, 0.52, 0],
+            buff=0, stroke_width=2.5,
+            max_tip_length_to_length_ratio=0.45,
+            color=WHITE,
+        )
+        lbl = Text(label, font_size=13, color=YELLOW)
+        lbl.move_to([0, 0.72, 0])
+        self.add(stub, arrow, lbl)
+
+        self._terminal = VectorizedPoint([0.0, 0.0, 0.0])
+        self.add(self._terminal)
+        self.set_active(False)
+
+    def get_terminal(self) -> np.ndarray:
+        return self._terminal.get_location()
+
+
+class VisualGND(CircuitShape):
+    """
+    Ground symbol.
+    Terminal is at the origin (top); symbol extends downward.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        stub = Line([0, 0, 0], [0, -0.08, 0], stroke_color=WHITE, stroke_width=2)
+        b1 = Line([-0.22, -0.08, 0], [0.22, -0.08, 0], stroke_color=WHITE, stroke_width=2.5)
+        b2 = Line([-0.15, -0.18, 0], [0.15, -0.18, 0], stroke_color=WHITE, stroke_width=2.5)
+        b3 = Line([-0.08, -0.28, 0], [0.08, -0.28, 0], stroke_color=WHITE, stroke_width=2.5)
+        self.add(stub, b1, b2, b3)
+
+        self._terminal = VectorizedPoint([0.0, 0.0, 0.0])
+        self.add(self._terminal)
+        self.set_active(False)
+
+    def get_terminal(self) -> np.ndarray:
+        return self._terminal.get_location()
+
+
+class VisualCapacitor(CircuitShape):
+    """
+    Capacitor symbol (two parallel plates), oriented vertically.
+    Positive terminal at top, negative at bottom.
+    """
+
+    def __init__(self, label: str = "", **kwargs):
+        super().__init__(**kwargs)
+        top_wire = Line([0, 0.32, 0], [0, 0.07, 0], stroke_color=WHITE, stroke_width=2)
+        top_plate = Line([-0.22, 0.07, 0], [0.22, 0.07, 0], stroke_color=WHITE, stroke_width=3.5)
+        bot_plate = Line([-0.22, -0.07, 0], [0.22, -0.07, 0], stroke_color=WHITE, stroke_width=3.5)
+        bot_wire = Line([0, -0.07, 0], [0, -0.32, 0], stroke_color=WHITE, stroke_width=2)
+        self.add(top_wire, top_plate, bot_plate, bot_wire)
+
+        if label:
+            lbl = Text(label, font_size=12, color=WHITE)
+            lbl.move_to([0.38, 0, 0])
+            self.add(lbl)
+
+        self._pos_terminal = VectorizedPoint([0, 0.32, 0])
+        self._neg_terminal = VectorizedPoint([0, -0.32, 0])
+        self.add(self._pos_terminal, self._neg_terminal)
+        self.set_active(False)
+
+    def get_pos_terminal(self) -> np.ndarray:
+        return self._pos_terminal.get_location()
+
+    def get_neg_terminal(self) -> np.ndarray:
+        return self._neg_terminal.get_location()
+
+
+class VisualPhotodiode(CircuitShape):
+    """
+    Photodiode symbol, oriented vertically with cathode at top, anode at bottom.
+    Includes two diagonal photon arrows indicating light absorption.
+
+    Pin access:
+      get_cathode() → top terminal
+      get_anode()   → bottom terminal
+    """
+
+    def __init__(self, show_photons: bool = True, **kwargs):
+        super().__init__(**kwargs)
+
+        # Triangle (anode at base/bottom, cathode at tip/top)
+        tri = Polygon(
+            [-0.18, -0.15, 0],
+            [0.18, -0.15, 0],
+            [0, 0.15, 0],
+            stroke_color=WHITE, stroke_width=2,
+            fill_color=WHITE, fill_opacity=0.15,
+        )
+        # Cathode bar (horizontal line at top of triangle)
+        bar = Line([-0.22, 0.15, 0], [0.22, 0.15, 0], stroke_color=WHITE, stroke_width=2.5)
+        # Terminal wires
+        top_wire = Line([0, 0.15, 0], [0, 0.38, 0], stroke_color=WHITE, stroke_width=2)
+        bot_wire = Line([0, -0.15, 0], [0, -0.38, 0], stroke_color=WHITE, stroke_width=2)
+        self.fill_shape = tri
+        self.add(tri, bar, top_wire, bot_wire)
+
+        if show_photons:
+            ph_params = dict(buff=0, stroke_width=2.5,
+                             max_tip_length_to_length_ratio=0.4, color=YELLOW)
+            ph1 = Arrow([-0.38, 0.60, 0], [-0.16, 0.32, 0], **ph_params)
+            ph2 = Arrow([-0.20, 0.72, 0], [0.02, 0.44, 0], **ph_params)
+            self.add(ph1, ph2)
+
+        self._cathode = VectorizedPoint([0, 0.38, 0])
+        self._anode   = VectorizedPoint([0, -0.38, 0])
+        self.add(self._cathode, self._anode)
+        self.set_active(False)
+
+    def get_cathode(self) -> np.ndarray:
+        return self._cathode.get_location()
+
+    def get_anode(self) -> np.ndarray:
+        return self._anode.get_location()
+
+
+class VisualNMOS(CircuitShape):
+    """
+    Standard NMOS enhancement-mode transistor symbol.
+
+    Local coordinate layout (before scale / move_to):
+
+         D  [0.18, 0.55, 0]
+         |
+    G ───||  (gate line left, channel line right, ~0.08 gap)
+    [-0.42, 0, 0]
+         |
+         ↑  (N-channel arrow on source stub)
+         S  [0.18, -0.55, 0]
+
+    Pin access:
+      get_gate()   → leftmost gate terminal
+      get_drain()  → top terminal
+      get_source() → bottom terminal
+    """
+
+    # Geometry constants (local coords before any scaling)
+    _BODY_X   = 0.00   # x of body (channel) line
+    _BODY_HH  = 0.28   # half-height of body line
+    _GATE_X   = -0.10  # x of gate electrode line (0.10 gap from body)
+    _GATE_EXT = -0.42  # x of gate terminal (left end of gate stub)
+    _STUB_X   = 0.18   # x of drain/source terminal wires
+    _EXT_H    = 0.27   # additional height above/below stubs for terminal wires
+
+    def __init__(self, label: str = "", **kwargs):
+        super().__init__(**kwargs)
+
+        bx, bhh = self._BODY_X, self._BODY_HH
+        gx, ge  = self._GATE_X, self._GATE_EXT
+        sx, eh  = self._STUB_X, self._EXT_H
+
+        # Channel (body) — vertical bar
+        body = Line([bx, -bhh, 0], [bx, bhh, 0], stroke_color=WHITE, stroke_width=3)
+
+        # Gate electrode — parallel to body, separated by gap
+        gate_line = Line([gx, -bhh * 0.85, 0], [gx, bhh * 0.85, 0],
+                         stroke_color=WHITE, stroke_width=2.5)
+
+        # Gate horizontal stub → external terminal
+        gate_stub = Line([ge, 0, 0], [gx, 0, 0], stroke_color=WHITE, stroke_width=2)
+
+        # Drain stub (horizontal from body to right)
+        drain_stub = Line([bx, bhh, 0], [sx, bhh, 0], stroke_color=WHITE, stroke_width=2)
+        # Drain terminal (vertical up)
+        drain_wire = Line([sx, bhh, 0], [sx, bhh + eh, 0], stroke_color=WHITE, stroke_width=2)
+
+        # Source stub (horizontal from body to right)
+        src_stub = Line([bx, -bhh, 0], [sx, -bhh, 0], stroke_color=WHITE, stroke_width=2)
+        # Source terminal (vertical down)
+        src_wire = Line([sx, -bhh, 0], [sx, -(bhh + eh), 0], stroke_color=WHITE, stroke_width=2)
+
+        # N-channel arrow on source stub (small arrow pointing LEFT → toward body)
+        mid_src_x = (bx + sx) / 2 + 0.02
+        n_arrow = Arrow(
+            [mid_src_x + 0.10, -bhh, 0], [mid_src_x - 0.06, -bhh, 0],
+            buff=0, stroke_width=2, max_tip_length_to_length_ratio=0.7,
+            color=WHITE,
+        )
+
+        self.add(body, gate_line, gate_stub, drain_stub, drain_wire,
+                 src_stub, src_wire, n_arrow)
+
+        # Optional identifier label (placed left of gate)
+        if label:
+            lbl = Text(label, font_size=13, color=WHITE)
+            lbl.move_to([ge - 0.22, 0.22, 0])
+            self.add(lbl)
+
+        # Pin VectorizedPoints (move with the VGroup on scale/move_to)
+        self._gate_pt   = VectorizedPoint([ge, 0, 0])
+        self._drain_pt  = VectorizedPoint([sx, bhh + eh, 0])
+        self._source_pt = VectorizedPoint([sx, -(bhh + eh), 0])
+        self.add(self._gate_pt, self._drain_pt, self._source_pt)
+
+        self.set_active(False)
+
+    def get_gate(self) -> np.ndarray:
+        return self._gate_pt.get_location()
+
+    def get_drain(self) -> np.ndarray:
+        return self._drain_pt.get_location()
+
+    def get_source(self) -> np.ndarray:
+        return self._source_pt.get_location()
+
+
 def same_y(target, val):
     val = val[:]
     val[1] = target[1]

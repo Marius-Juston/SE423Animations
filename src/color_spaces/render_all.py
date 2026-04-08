@@ -101,8 +101,8 @@ def main():
     # Render all scenes in parallel
     tasks = [(i, scene, flags, src) for i, scene in enumerate(SCENES)]
 
-    # with Pool(processes=workers) as pool:
-    #     results = pool.map(render_scene, tasks)
+    with Pool(processes=workers) as pool:
+        results = pool.map(render_scene, tasks)
 
     t_render = time.time() - t_start
     print(f"\n  Render time: {t_render:.1f}s "
@@ -136,7 +136,7 @@ def main():
 
     fl = Path("filelist.txt")
     fl.write_text("\n".join(f"file '{p.resolve()}'" for p in rendered) + "\n")
-    out = f"color_spaces_full_{folder}.mp4"
+    out = f"{Path(".").name}_full_{folder}.mp4"
     r = subprocess.run(
         f"ffmpeg -y -f concat -safe 0 -i {fl} -c copy {out}",
         shell=True, capture_output=True)
