@@ -8,14 +8,13 @@ import matplotlib.animation as animation
 
 def best_fit_transform(A, B):
     """
-    Calculates the best-fit transform that maps points A onto points B.
+    Calculates the P2P ICP Closest Point Transformation
     Input:
         A: Nxm numpy array of source points
         B: Nxm numpy array of destination points
     Output:
         T: (m+1)x(m+1) homogeneous transformation matrix
     """
-    assert A.shape == B.shape
     m = A.shape[1]
     centroid_A = np.mean(A, axis=0)
     centroid_B = np.mean(B, axis=0)
