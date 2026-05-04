@@ -39,7 +39,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 import gtsam
 from gtsam.symbol_shorthand import X
-from multiprocessing import shared_memory, resource_tracker
+from multiprocessing import shared_memory
 
 import posix_ipc
 
@@ -84,21 +84,11 @@ class ShmRegion:
             self.shm = shared_memory.SharedMemory(name=name, create=True, size=size)
         else:
             self.shm = shared_memory.SharedMemory(name=name, create=False)
-
-        try:
-            resource_tracker.unregister(self.shm._name, "shared_memory")
-        except Exception:
-            pass
-
         self.array = np.ndarray((1,), dtype=dtype, buffer=self.shm.buf)
 
     def close(self):
-        try:
-            if hasattr(self, 'array'):
-                del self.array
-            self.shm.close()
-        except Exception:
-            pass
+        try: self.shm.close()
+        except Exception: pass
 
     def unlink(self):
         try: self.shm.unlink()
@@ -157,29 +147,21 @@ class OdomReader(threading.Thread):
     def stop(self): self._stop.set()
 
     def run(self):
+        view = self.shm.array
         while not self._stop.is_set():
             if not self.sem.acquire(timeout=0.2):
                 continue
-            if self._stop.is_set():
-                self.sem.release()
-                break
-
-            try:
-                view = self.shm.array
-                seq = int(view['seq'][0])
-                if seq == self.last_seq:
-                    continue
-                ts = float(view['timestamp'][0])
-                x  = float(view['x'][0])
-                y  = float(view['y'][0])
-                th = float(view['theta'][0])
-                self.last_seq = seq
-                with self.lock:
-                    self.buffer.append((ts, x, y, th))
-                    self.received += 1
-            except (AttributeError, BufferError, ValueError):
-                # If the buffer was closed underneath us, exit cleanly
-                break
+            seq = int(view['seq'][0])
+            if seq == self.last_seq:
+                continue
+            ts = float(view['timestamp'][0])
+            x  = float(view['x'][0])
+            y  = float(view['y'][0])
+            th = float(view['theta'][0])
+            self.last_seq = seq
+            with self.lock:
+                self.buffer.append((ts, x, y, th))
+                self.received += 1
 
     def latest(self) -> Optional[Tuple[float, float, float, float]]:
         with self.lock:
@@ -243,37 +225,27 @@ class LidarReader(threading.Thread):
     def stop(self): self._stop.set()
 
     def run(self):
-
+        view = self.shm.array
         while not self._stop.is_set():
             if not self.sem.acquire(timeout=0.2):
                 continue
-
-            if self._stop.is_set():
-                self.sem.release()
-                break
-
+            seq = int(view['seq'][0])
+            if seq == self.last_seq:
+                continue
+            n     = int(view['n_points'][0])
+            ts    = float(view['timestamp'][0])
+            sweep = float(view['sweep_duration'][0])
+            pts   = np.array(view['points'][0, :n], dtype=np.float32, copy=True)
+            self.last_seq = seq
+            self.received += 1
             try:
-                view = self.shm.array
-                seq = int(view['seq'][0])
-                if seq == self.last_seq:
-                    continue
-                n     = int(view['n_points'][0])
-                ts    = float(view['timestamp'][0])
-                sweep = float(view['sweep_duration'][0])
-                pts   = np.array(view['points'][0, :n], dtype=np.float32, copy=True)
-                self.last_seq = seq
-                self.received += 1
-                try:
-                    self.q.put_nowait((seq, ts, sweep, pts))
-                except queue.Full:
-                    try: self.q.get_nowait()
-                    except queue.Empty: pass
-                    try: self.q.put_nowait((seq, ts, sweep, pts))
-                    except queue.Full: pass
-                    self.dropped += 1
-            except (AttributeError, BufferError, ValueError):
-                # If the buffer was closed underneath us, exit cleanly
-                break
+                self.q.put_nowait((seq, ts, sweep, pts))
+            except queue.Full:
+                try: self.q.get_nowait()
+                except queue.Empty: pass
+                try: self.q.put_nowait((seq, ts, sweep, pts))
+                except queue.Full: pass
+                self.dropped += 1
 
 
 # ---------------------------------------------------------------------------
@@ -784,47 +756,20 @@ class RealtimeLidarSLAM:
         idx = np.clip(idx, 0, len(bts) - 2)
         t0 = bts[idx]; t1 = bts[idx + 1]
         u  = np.clip((ts - t0) / np.maximum(t1 - t0, 1e-9), 0.0, 1.0)
+        x_i = bxs[idx] + u * (bxs[idx + 1] - bxs[idx])
+        y_i = bys[idx] + u * (bys[idx + 1] - bys[idx])
+        dth_raw = bths[idx + 1] - bths[idx]
+        dth_raw = (dth_raw + np.pi) % (2 * np.pi) - np.pi
+        th_i = bths[idx] + u * dth_raw
 
-        # Extract delta world translations and rotation
-        dth = bths[idx + 1] - bths[idx]
-        dth = (dth + np.pi) % (2 * np.pi) - np.pi
-        dx_w = bxs[idx + 1] - bxs[idx]
-        dy_w = bys[idx + 1] - bys[idx]
-
-        # Rotate world deltas into the body frame of idx
-        c, s = np.cos(bths[idx]), np.sin(bths[idx])
-        dx_b = c * dx_w + s * dy_w
-        dy_b = -s * dx_w + c * dy_w
-
-        # Vectorized SE(2) Exponential Map integration
-        small_angle = np.abs(dth) < 1e-5
-
-        # Calculate the left Jacobian of SO(2) components
-        V11 = np.where(small_angle, u, np.sin(u * dth) / np.where(small_angle, 1.0, dth))
-        V12 = np.where(small_angle, 0.0, (1.0 - np.cos(u * dth)) / np.where(small_angle, 1.0, dth))
-
-        # Interpolated translation in the base body frame
-        dx_b_interp = V11 * dx_b - V12 * dy_b
-        dy_b_interp = V12 * dx_b + V11 * dy_b
-
-        # Transform back to global interpolated pose
-        x_i = bxs[idx] + c * dx_b_interp - s * dy_b_interp
-        y_i = bys[idx] + s * dx_b_interp + c * dy_b_interp
-        th_i = bths[idx] + u * dth
-
-        # Now compute the relative transform from the reference pose to the interpolated pose
         rx, ry, rth = ref_xyth
-        dxw = x_i - rx
-        dyw = y_i - ry
-
+        dxw = x_i - rx; dyw = y_i - ry
         cc, ss = np.cos(-rth), np.sin(-rth)
         dx = (cc * dxw - ss * dyw).astype(np.float32)
         dy = (ss * dxw + cc * dyw).astype(np.float32)
-        dth_rel = (th_i - rth).astype(np.float32)
+        dth = (th_i - rth).astype(np.float32)
+        cc2 = np.cos(dth); ss2 = np.sin(dth)
 
-        cc2, ss2 = np.cos(dth_rel), np.sin(dth_rel)
-
-        # Apply transformation to the point cloud
         out = np.empty_like(pts)
         out[:, 0] = dx + cc2 * pts[:, 0] - ss2 * pts[:, 1]
         out[:, 1] = dy + ss2 * pts[:, 0] + cc2 * pts[:, 1]
@@ -899,40 +844,51 @@ def _make_trajectory_50hz(speed=0.6, side=8.0, laps=2):
     return traj
 
 
-def _make_diff_drive_trajectory(hz=50, laps=2):
-    """Simulates a differential drive robot using exact circular arc integration."""
+def _make_diff_drive_trajectory(hz=50, speed=0.6, side=8.0, laps=2):
+    """
+    Simulates a differential drive robot following a specific set of legs.
+    Uses exact circular arc integration.
+    """
     dt = 1.0 / hz
-    traj = [(0.0, 0.0, 0.0)]
+    x, y = -side / 2, -side / 2
+    curr_theta = 0.0
+    traj = [(x, y, curr_theta)]
 
-    # Sequence of (v_linear, v_angular, duration_seconds)
-    # This creates a rounded rectangle (straight lines + 90 degree curves)
-    commands = [
-                   (0.8, 0.0, 5.0),  # Straight for 5s
-                   (0.6, np.pi / 4, 2.0),  # Turn left 90 deg over 2s
-                   (0.8, 0.0, 5.0),  # Straight
-                   (0.6, np.pi / 4, 2.0),  # Turn left
-                   (0.8, 0.0, 5.0),  # Straight
-                   (0.6, np.pi / 4, 2.0),  # Turn left
-                   (0.8, 0.0, 5.0),  # Straight
-                   (0.6, np.pi / 4, 2.0),  # Turn left
-               ] * laps
+    legs = [(0.0, side), (np.pi / 2, side), (np.pi, side), (-np.pi / 2, side)]
 
-    for v, w, duration in commands:
-        steps = int(duration / dt)
-        for _ in range(steps):
-            x, y, th = traj[-1]
-            if abs(w) < 1e-6:
-                # Limit case: straight line integration
+    for _ in range(laps):
+        for target_heading, length in legs:
+            # Calculate the shortest angular distance (wrap to -pi to pi)
+            d_theta = (target_heading - curr_theta + np.pi) % (2 * np.pi) - np.pi
+
+            # We assume a fixed angular velocity for the turn (e.g., 1.0 rad/s)
+            w_turn = 1.0 if d_theta > 0 else -1.0
+            if abs(d_theta) > 1e-6:
+                turn_duration = abs(d_theta / w_turn)
+                turn_steps = int(turn_duration / dt)
+
+                for _ in range(turn_steps):
+                    x, y, th = traj[-1]
+                    # Since v=0, this is pure rotation
+                    nth = (th + w_turn * dt + np.pi) % (2 * np.pi) - np.pi
+                    traj.append((x, y, nth))
+
+                # Snap to exact heading to prevent drift
+                x, y, _ = traj[-1]
+                traj[-1] = (x, y, target_heading)
+                curr_theta = target_heading
+
+            v = speed
+            w = 0.0  # Straight line
+            duration = length / v
+            move_steps = int(duration / dt)
+
+            for _ in range(move_steps):
+                x, y, th = traj[-1]
+                # Straight line integration (v > 0, w = 0)
                 nx = x + v * np.cos(th) * dt
                 ny = y + v * np.sin(th) * dt
-                nth = th
-            else:
-                # Exact circular arc integration
-                r = v / w
-                nx = x + r * (np.sin(th + w * dt) - np.sin(th))
-                ny = y - r * (np.cos(th + w * dt) - np.cos(th))
-                nth = (th + w * dt + np.pi) % (2 * np.pi) - np.pi
-            traj.append((nx, ny, nth))
+                traj.append((nx, ny, th))
 
     return traj
 
@@ -944,8 +900,9 @@ class ProducerSim:
                  odom_shm:  ShmRegion, odom_sem:  NamedSemaphore,
                  trajectory_50hz, walls,
                  sim_speed: float = 1.0,
-                 odom_noise_xy: float = 0.0006,    # per-step random walk
-                 odom_noise_th: float = 0.0003):
+                 odom_k_d: float = 0.05,  # Encoder distance error std dev (m/sqrt(m))
+                 odom_k_th: float = 0.02,  # Gyro scale factor error std dev (rad/sqrt(rad))
+                 gyro_arw: float = 0.005):
         self.lidar_shm = lidar_shm; self.lidar_sem = lidar_sem
         self.odom_shm  = odom_shm;  self.odom_sem  = odom_sem
         self.traj = trajectory_50hz
@@ -954,13 +911,20 @@ class ProducerSim:
         self.odom_dt  = 0.020 / sim_speed
         self.lidar_dt = 0.100 / sim_speed
         self.lidar_sweep = self.lidar_dt
-        self.odom_noise_xy = odom_noise_xy
-        self.odom_noise_th = odom_noise_th
+
+        # Noise parameters
+        self.odom_k_d = odom_k_d
+        self.odom_k_th = odom_k_th
+        self.gyro_arw = gyro_arw
+
         self._stop = threading.Event()
         self._done = threading.Event()
         self.odom_seq = 0
         self.lidar_seq = 0
         self.cum = np.zeros(3)
+
+        self.noisy_pose = np.zeros(3, dtype=float)
+        self.odom_history = []
         self.rng = np.random.default_rng(0)
         self._odom_t  = threading.Thread(target=self._odom_loop,  daemon=True, name="ProdOdom")
         self._lidar_t = threading.Thread(target=self._lidar_loop, daemon=True, name="ProdLidar")
@@ -979,24 +943,60 @@ class ProducerSim:
         next_t = time.monotonic()
         i = 0
         n = len(self.traj)
+
         while not self._stop.is_set() and i < n:
             now = time.monotonic()
             if now < next_t:
                 time.sleep(next_t - now)
+
             gt = self.traj[i]
-            self.cum[0] += self.rng.normal(0.0, self.odom_noise_xy)
-            self.cum[1] += self.rng.normal(0.0, self.odom_noise_xy)
-            self.cum[2] += self.rng.normal(0.0, self.odom_noise_th)
+
+            if i == 0:
+                # Initialize the estimator precisely at the ground-truth start
+                self.noisy_pose[:] = gt
+                noisy_x, noisy_y, noisy_th = gt
+            else:
+                gt_prev = self.traj[i - 1]
+
+                # Extract true incremental motion
+                dx = gt[0] - gt_prev[0]
+                dy = gt[1] - gt_prev[1]
+                true_d = np.hypot(dx, dy)
+                true_dth = (gt[2] - gt_prev[2] + np.pi) % (2 * np.pi) - np.pi
+
+                # 1. Simulate encoder distance measurement
+                var_d = (self.odom_k_d ** 2) * true_d
+                noisy_d = true_d + self.rng.normal(0.0, np.sqrt(var_d))
+
+                # 2. Simulate gyroscope heading measurement (Scale factor + ARW)
+                # Note: true delta-t of integration is 0.020s, scaling by sim_speed
+                # preserves the mathematical variance accumulation with respect to virtual time.
+                var_th = (self.odom_k_th ** 2) * abs(true_dth) + (self.gyro_arw ** 2) * (self.odom_dt * self.sim_speed)
+                noisy_dth = true_dth + self.rng.normal(0.0, np.sqrt(var_th))
+
+                # 3. Mid-point integration (Runge-Kutta 2nd Order)
+                mid_th = self.noisy_pose[2] + noisy_dth / 2.0
+
+                self.noisy_pose[0] += noisy_d * np.cos(mid_th)
+                self.noisy_pose[1] += noisy_d * np.sin(mid_th)
+                self.noisy_pose[2] = (self.noisy_pose[2] + noisy_dth + np.pi) % (2 * np.pi) - np.pi
+
+                noisy_x, noisy_y, noisy_th = self.noisy_pose
+
+            self.odom_history.append((noisy_x, noisy_y, noisy_th))
+
             view = self.odom_shm.array
             self.odom_seq += 1
-            view['seq'][0]       = self.odom_seq
+            view['seq'][0] = self.odom_seq
             view['timestamp'][0] = time.time()
-            view['x'][0]         = gt[0] + self.cum[0]
-            view['y'][0]         = gt[1] + self.cum[1]
-            view['theta'][0]     = gt[2] + self.cum[2]
+            view['x'][0] = noisy_x
+            view['y'][0] = noisy_y
+            view['theta'][0] = noisy_th
             self.odom_sem.release()
+
             i += 1
             next_t += self.odom_dt
+
         self._done.set()
 
     def _lidar_loop(self):
@@ -1043,13 +1043,14 @@ def run_demo():
         np.random.seed(0)
         walls = _build_world()
         # traj = _make_trajectory_50hz(speed=0.6, side=8.0, laps=2)
-        traj = _make_diff_drive_trajectory(hz=50, laps=2)
+        traj = _make_diff_drive_trajectory(hz=50, side=8.0, laps=2)
 
         # sim_speed=1.0 means real-time. Larger values stress-test the pipeline.
         SIM_SPEED = 4.0
 
         prod = ProducerSim(lidar_shm, lidar_sem, odom_shm, odom_sem,
-                           traj, walls, sim_speed=SIM_SPEED)
+                           traj, walls, sim_speed=SIM_SPEED,
+                           odom_k_d=0.15, odom_k_th=0.1, gyro_arw=0.005)
 
         slam = RealtimeLidarSLAM(
             lidar_shm_name=lidar_shm_name, lidar_sem_name=lidar_sem_name,
@@ -1064,6 +1065,7 @@ def run_demo():
 
         traj_opt = slam.trajectory()
         map_pts  = slam.global_map()
+        odom_arr = np.asarray(prod.odom_history)
 
         def stat(xs):
             if not xs: return (0.0, 0.0, 0.0)
@@ -1098,6 +1100,8 @@ def run_demo():
             ax.scatter(map_pts[:, 0], map_pts[:, 1], s=0.4, c='k', alpha=0.4)
         gt_arr = np.asarray(traj)
         ax.plot(gt_arr[:, 0], gt_arr[:, 1], 'g--', lw=1.0, label='ground truth')
+        if len(odom_arr):
+            ax.plot(odom_arr[:, 0], odom_arr[:, 1], 'r-.', lw=1.0, alpha=0.7, label='raw odometry')
         if len(traj_opt):
             ax.plot(traj_opt[:, 0], traj_opt[:, 1], 'b-', lw=1.4, label='SLAM optimized')
         ax.set_aspect('equal'); ax.grid(True); ax.legend()
