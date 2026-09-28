@@ -1,181 +1,294 @@
-import os
+"""Offline replay of lidar_slam_2d.py that produces the data behind the
+interactive SLAM walkthrough (site/lidar_slam/data/).
+
+For each noise level it simulates the same diff-drive run, corrupts the
+odometry with the ProducerSim noise model, simulates rolling LiDAR sweeps
+(every beam from its own true pose, like ProducerSim) and feeds them through
+the real undistort_scan / LidarSLAM2D / pl_icp_2d / search_loop_closure code.
+Differences from the threaded pipeline, on purpose:
+  - no threads or shared memory; odometry is read straight from the array;
+  - the loop search for keyframe i runs synchronously right after i is added
+    (the real LoopClosureWorker does the same work on another thread);
+  - the SLAM's wheel-odometry noise model is set to the level's true noise
+    parameters (a real robot would use calibrated values).
+
+Loop candidates come from the current SLAM estimates, exactly like the
+worker. If a level produced no loop closure at all, a ground-truth-assisted
+search is used as a fallback and every such edge is flagged `gtAssisted`.
+
+Each loop edge is [new kf, old kf, gtAssisted (0/1), |ICP measurement −
+true relative pose| in metres]; the last field is an offline diagnostic the
+real system cannot know, used by the site to mark wrong (aliased) loops.
+
+Writes <out>/index.json plus one <out>/level_XX.json per noise level.
+
+Usage:  uv run python src/slam/generate_cache.py --out <site>/lidar_slam/data
+"""
+import argparse
 import json
+import os
+import sys
+from pathlib import Path
+
 import numpy as np
 import gtsam
-from scipy.spatial import cKDTree
 
-from lidar_slam_2d import (
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from lidar_slam_2d import (  # noqa: E402
+    N_BEAMS, LIDAR_FOV,
     _build_world,
     _make_diff_drive_trajectory,
     _simulate_scan,
+    _sweep_beam_poses,
     LidarSLAM2D,
     SLAMConfig,
     voxel_downsample,
-    pl_icp_2d
+    undistort_scan,
+    search_loop_closure,
 )
 
+HZ = 50
+LIDAR_EVERY = 5          # 50 Hz / 5 = 10 Hz
+N_LEVELS = 12
+WRONG_LOOP_M = 0.15      # loop measurement off by more than this = wrong
 
-def generate_level(k_d, k_th, arw, lidar_noise):
-    np.random.seed(42)
-    rng = np.random.default_rng(42)
+
+def noise_for(t: float) -> dict:
+    """Noise mapping shared with the site's slider (app.jsx)."""
+    return {"k_d": 0.5 * t, "k_th": 0.4 * t, "arw": 0.05 * t, "lidar": 0.10 * t}
+
+
+def severity_for(n: dict) -> float:
+    return n["k_d"] + n["k_th"] + 10.0 * n["arw"] + 5.0 * n["lidar"]   # = 1.9 t
+
+
+def simulate_odometry(gt_traj, k_d, k_th, arw, rng):
+    dt = 1.0 / HZ
+    odom = [np.array(gt_traj[0], dtype=float)]
+    noisy = np.array(gt_traj[0], dtype=float)
+    for i in range(1, len(gt_traj)):
+        gt, gp = gt_traj[i], gt_traj[i - 1]
+        true_d = np.hypot(gt[0] - gp[0], gt[1] - gp[1])
+        true_dth = (gt[2] - gp[2] + np.pi) % (2 * np.pi) - np.pi
+        noisy_d = true_d + rng.normal(0, np.sqrt(k_d ** 2 * true_d))
+        noisy_dth = true_dth + rng.normal(0, np.sqrt(k_th ** 2 * abs(true_dth) + arw ** 2 * dt))
+        mid = noisy[2] + noisy_dth / 2.0
+        noisy[0] += noisy_d * np.cos(mid)
+        noisy[1] += noisy_d * np.sin(mid)
+        noisy[2] = (noisy[2] + noisy_dth + np.pi) % (2 * np.pi) - np.pi
+        odom.append(noisy.copy())
+    return odom
+
+
+def config_for(noise: dict) -> SLAMConfig:
+    cfg = SLAMConfig()
+    cfg.wheel_k_d, cfg.wheel_k_th, cfg.wheel_arw = noise["k_d"], noise["k_th"], noise["arw"]
+    return cfg
+
+
+def run_level(gt_traj, walls, noise, cfg, seed=42, use_gt_search=False):
+    np.random.seed(seed)                   # lidar noise (_simulate_scan)
+    rng = np.random.default_rng(seed)      # odometry noise
+    odom_traj = simulate_odometry(gt_traj, noise["k_d"], noise["k_th"], noise["arw"], rng)
+    n = len(gt_traj)
+    ts = np.arange(n) / HZ
+    odom_buf = np.column_stack([ts, np.asarray(odom_traj)])
+    sweep = LIDAR_EVERY / HZ
+
+    slam = LidarSLAM2D(cfg)
+    kfTrajIdx, kfGt, kfOdom, kfOptOnline, kfCands, loopEdges = [], [], [], [], [], []
+    last_pose = None
+    delta_since_kf = gtsam.Pose2(0, 0, 0)
+    last_loop_i = -10**9
+    stats = {"icp_rejected": 0}
+
+    for i in range(0, n, LIDAR_EVERY):
+        # Rolling sweep ending at sample i, then motion compensation from the
+        # (noisy) odometry available up to i — as in the threaded pipeline.
+        beams = _sweep_beam_poses(gt_traj, i, LIDAR_EVERY)
+        scan = _simulate_scan(gt_traj[i], walls, noise_std=noise["lidar"], beam_poses=beams)
+        if cfg.enable_undistort:
+            scan = undistort_scan(scan, ts[i] - sweep, sweep, tuple(odom_traj[i]),
+                                  odom_buf[max(0, i - 60): i + 1], cfg)
+        odom_pose = gtsam.Pose2(*odom_traj[i])
+
+        if slam.n_kf == 0:
+            slam.add_first_scan(scan, odom_pose)
+            kfTrajIdx.append(i); kfGt.append(gt_traj[i]); kfOdom.append(odom_traj[i])
+            kfOptOnline.append(list(slam.trajectory()[0])); kfCands.append([])
+            last_pose = odom_pose
+            continue
+
+        delta_since_kf = delta_since_kf.compose(last_pose.between(odom_pose))
+        last_pose = odom_pose
+        d = delta_since_kf
+        if not (np.hypot(d.x(), d.y()) > cfg.kf_trans or abs(d.theta()) > cfg.kf_rot):
+            continue
+
+        # --- same logic as RealtimeLidarSLAM._handle_keyframe --------------
+        scan_ds = voxel_downsample(scan, cfg.voxel_size)
+        submap = slam.get_submap(slam.n_kf - 1)
+        dt = ts[i] - ts[kfTrajIdx[-1]]
+        icp = slam.match_keyframe(scan_ds, delta_since_kf, submap, dt)
+        if icp is None:
+            stats["icp_rejected"] += 1
+        j_new = slam.add_keyframe(scan_ds, delta_since_kf, icp, dt)
+        slam.flush()
+        delta_since_kf = gtsam.Pose2(0, 0, 0)
+
+        kfTrajIdx.append(i); kfGt.append(gt_traj[i]); kfOdom.append(odom_traj[i])
+        est = slam.trajectory()
+        kfOptOnline.append(list(est[j_new]))
+
+        # --- same logic as LoopClosureWorker (synchronous here) ------------
+        if j_new - last_loop_i < cfg.loop_cooldown_kf:
+            kfCands.append([])
+            continue
+        search_poses = np.asarray(kfGt, dtype=float) if use_gt_search else est
+        best, tried = search_loop_closure(search_poses, slam.kf_scans, slam.kf_normals,
+                                          j_new, cfg, slam.threshold.sigma)
+        kfCands.append([[int(k), float(search_poses[k][0]), float(search_poses[k][1])]
+                        for k in tried])
+        if best is not None:
+            last_loop_i = j_new
+            slam.inject_loop_factor(best.j, best.i, best.rel, best.rmse, best.cov)
+            slam.flush(cfg.isam_extra_iters_after_loop)
+            # Offline-only diagnostic: how far is the ICP measurement from the
+            # true relative pose? (perceptual aliasing at high noise)
+            true_rel = gtsam.Pose2(*kfGt[best.j]).between(gtsam.Pose2(*kfGt[j_new]))
+            e = true_rel.between(best.rel)
+            loopEdges.append([j_new, int(best.j), 1 if use_gt_search else 0,
+                              round(float(np.hypot(e.x(), e.y())), 3)])
+
+    stats["sigma"] = slam.threshold.sigma
+    return {
+        "odomTraj": odom_traj,
+        "kfTrajIdx": kfTrajIdx,
+        "kfGt": kfGt,
+        "kfOdom": kfOdom,
+        "kfOpt": slam.trajectory().tolist(),
+        "kfOptOnline": kfOptOnline,
+        "kfCands": kfCands,
+        "kfScans": slam.kf_scans,
+        "loopEdges": loopEdges,
+    }, stats
+
+
+def rmse_xy(a, b):
+    a = np.asarray(a, dtype=float); b = np.asarray(b, dtype=float)
+    return float(np.sqrt(np.mean(np.sum((a[:, :2] - b[:, :2]) ** 2, axis=1))))
+
+
+def r4(x):
+    return np.round(np.asarray(x, dtype=float), 4).tolist()
+
+
+def main():
+    here = Path(__file__).resolve()
+    default_out = here.parents[3] / "SE-423---Class-Material" / "site" / "lidar_slam" / "data"
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--out", type=Path, default=default_out,
+                    help=f"output directory (default: {default_out})")
+    args = ap.parse_args()
+    out: Path = args.out
+    out.mkdir(parents=True, exist_ok=True)
 
     walls = _build_world()
-    hz = 50
-    dt = 1.0 / hz
-    gt_traj = _make_diff_drive_trajectory(hz=hz, side=8.0, laps=2)
-    n_traj = len(gt_traj)
+    gt_traj = _make_diff_drive_trajectory(hz=HZ, side=8.0, laps=2)
+    cfg = SLAMConfig()          # for the shared config fields in index.json
 
-    odom_traj = []
-    noisy_pose = np.array(gt_traj[0])
-    odom_traj.append(noisy_pose.copy())
+    levels = []
+    print(f"{'lvl':>3} {'t':>5} {'sev':>6} | {'odom RMSE':>9} {'opt RMSE':>9} "
+          f"{'final err':>9} | {'KF':>4} {'loops':>5} {'wrong':>5} {'gt-assist':>9} {'icp rej':>7}")
+    ok = True
+    for li, t in enumerate(np.linspace(0.0, 1.0, N_LEVELS)):
+        noise = noise_for(float(t))
+        lcfg = config_for(noise)
+        data, stats = run_level(gt_traj, walls, noise, lcfg)
+        gt_assisted = False
+        if not data["loopEdges"]:
+            data, stats = run_level(gt_traj, walls, noise, lcfg, use_gt_search=True)
+            gt_assisted = True
 
-    for i in range(1, n_traj):
-        gt = gt_traj[i]
-        gt_prev = gt_traj[i - 1]
+        odom_rmse = rmse_xy(data["kfOdom"], data["kfGt"])
+        opt_rmse = rmse_xy(data["kfOpt"], data["kfGt"])
+        final_err = float(np.hypot(data["kfOpt"][-1][0] - data["kfGt"][-1][0],
+                                   data["kfOpt"][-1][1] - data["kfGt"][-1][1]))
+        n_loops = len(data["loopEdges"])
+        n_wrong = sum(1 for e in data["loopEdges"] if e[3] > WRONG_LOOP_M)
+        print(f"{li:3d} {t:5.2f} {severity_for(noise):6.3f} | {odom_rmse:9.4f} {opt_rmse:9.4f} "
+              f"{final_err:9.4f} | {len(data['kfGt']):4d} {n_loops:5d} {n_wrong:5d} {str(gt_assisted):>9} "
+              f"{stats['icp_rejected']:7d}")
+        if li == 0:
+            ok &= opt_rmse < 0.02
+        else:
+            ok &= opt_rmse <= odom_rmse
+        ok &= n_loops > 0
 
-        dx = gt[0] - gt_prev[0]
-        dy = gt[1] - gt_prev[1]
-        true_d = np.hypot(dx, dy)
-        true_dth = (gt[2] - gt_prev[2] + np.pi) % (2 * np.pi) - np.pi
+        fname = f"level_{li:02d}.json"
+        payload = {
+            "odomTraj": r4(data["odomTraj"]),
+            "kfTrajIdx": data["kfTrajIdx"],
+            "kfGt": r4(data["kfGt"]),
+            "kfOdom": r4(data["kfOdom"]),
+            "kfOpt": r4(data["kfOpt"]),
+            "kfOptOnline": r4(data["kfOptOnline"]),
+            "kfCands": [[[c[0], round(c[1], 4), round(c[2], 4)] for c in cs]
+                        for cs in data["kfCands"]],
+            "kfScans": [r4(s) for s in data["kfScans"]],
+            "loopEdges": data["loopEdges"],
+        }
+        with open(out / fname, "w") as f:
+            json.dump(payload, f, separators=(",", ":"))
+        levels.append({
+            "index": li,
+            "t": round(float(t), 6),
+            "severity": round(severity_for(noise), 4),
+            "file": fname,
+            "noise": {k: round(v, 6) for k, v in noise.items()},
+            "stats": {
+                "odomRmse": round(odom_rmse, 4),
+                "optRmse": round(opt_rmse, 4),
+                "finalErr": round(final_err, 4),
+                "nKf": len(data["kfGt"]),
+                "nLoops": n_loops,
+                "nWrongLoops": n_wrong,
+                "gtAssisted": gt_assisted,
+                "icpRejected": stats["icp_rejected"],
+                "icpSigma": round(stats["sigma"], 4),
+            },
+        })
 
-        var_d = (k_d ** 2) * true_d
-        noisy_d = true_d + rng.normal(0, np.sqrt(max(var_d, 0)))
-
-        var_th = (k_th ** 2) * abs(true_dth) + (arw ** 2) * dt
-        noisy_dth = true_dth + rng.normal(0, np.sqrt(max(var_th, 0)))
-
-        mid_th = noisy_pose[2] + noisy_dth / 2.0
-        noisy_pose[0] += noisy_d * np.cos(mid_th)
-        noisy_pose[1] += noisy_d * np.sin(mid_th)
-        noisy_pose[2] = (noisy_pose[2] + noisy_dth + np.pi) % (2 * np.pi) - np.pi
-
-        odom_traj.append(noisy_pose.copy())
-
-    cfg = SLAMConfig()
-    slam = LidarSLAM2D(cfg)
-
-    kfTrajIdx, kfGt, kfOdom, loopEdges = [], [], [], []
-    last_lidar_pose = None
-    delta_since_kf = gtsam.Pose2(0, 0, 0)
-
-    for i in range(n_traj):
-        if i % 5 == 0:
-            imu_pose = gtsam.Pose2(*odom_traj[i])
-            scan = _simulate_scan(gt_traj[i], walls, noise_std=lidar_noise)
-
-            if slam.n_kf == 0:
-                slam.add_first_scan(scan, imu_pose)
-                kfTrajIdx.append(i)
-                kfGt.append(gt_traj[i])
-                kfOdom.append(odom_traj[i])
-                last_lidar_pose = imu_pose
-                continue
-
-            odom_delta = last_lidar_pose.between(imu_pose)
-            delta_since_kf = delta_since_kf.compose(odom_delta)
-            d = delta_since_kf
-
-            if (np.hypot(d.x(), d.y()) > cfg.kf_trans or abs(d.theta()) > cfg.kf_rot):
-                scan_ds = voxel_downsample(scan, cfg.voxel_size)
-                base_idx = slam.n_kf - 1
-                submap, tree = slam.get_submap(base_idx)
-
-                refined = delta_since_kf
-                if len(submap) > 10:
-                    ref_tmp, rmse, ratio, ninl = pl_icp_2d(scan_ds, submap, delta_since_kf, target_tree=tree)
-                    diff = delta_since_kf.between(ref_tmp)
-                    if not (np.hypot(diff.x(), diff.y()) > cfg.icp_max_trans_dev
-                            or abs(diff.theta()) > cfg.icp_max_rot_dev
-                            or rmse > cfg.icp_max_rmse):
-                        refined = ref_tmp
-
-                j_new = slam.add_keyframe(scan_ds, refined)
-                slam.flush()
-
-                kfTrajIdx.append(i)
-                kfGt.append(gt_traj[i])
-                kfOdom.append(odom_traj[i])
-                delta_since_kf = gtsam.Pose2(0, 0, 0)
-
-                # --- UPGRADED LOOP CLOSURE LOGIC ---
-                # We simulate a "Global Place Recognition" module by searching
-                # against the Ground Truth positions rather than the drifted Odometry.
-                max_j = j_new - cfg.loop_min_kf_gap
-                if max_j > 0:
-                    gt_xy = np.array([[p[0], p[1]] for p in kfGt[:max_j]])
-                    gt_ths = np.array([p[2] for p in kfGt[:max_j]])
-                    gt_cx, gt_cy, gt_cth = kfGt[j_new]
-
-                    kdt = cKDTree(gt_xy)
-                    # Search physically nearby places (3.0 meters)
-                    cand = kdt.query_ball_point([gt_cx, gt_cy], 3.0)
-                    if cand:
-                        cand.sort(key=lambda idx: (gt_cx - gt_xy[idx, 0]) ** 2 + (gt_cy - gt_xy[idx, 1]) ** 2)
-                        best = None
-                        for j_cand in cand[:cfg.loop_max_candidates * 3]:
-                            dth = (gt_cth - gt_ths[j_cand] + np.pi) % (2 * np.pi) - np.pi
-                            if abs(dth) > cfg.loop_max_heading_diff: continue
-
-                            # Emulate global registration by giving ICP a perfect starting guess
-                            gt_old = gtsam.Pose2(float(gt_xy[j_cand, 0]), float(gt_xy[j_cand, 1]),
-                                                 float(gt_ths[j_cand]))
-                            gt_current = gtsam.Pose2(gt_cx, gt_cy, gt_cth)
-                            guess = gt_old.between(gt_current)
-
-                            rel, r, ratio, ninl = pl_icp_2d(slam.kf_scans[j_new], slam.kf_scans[j_cand], guess)
-
-                            # Slightly relaxed thresholds to ensure the UI visualization triggers smoothly
-                            if (r < 0.15 and ratio > 0.40 and ninl > 30):
-                                if best is None or r < best[0]:
-                                    best = (r, j_cand, rel)
-
-                        if best is not None:
-                            r, j_cand, rel = best
-                            slam.inject_loop_factor(j_new, j_cand, rel, r)
-                            slam.flush()
-                            loopEdges.append([j_new, j_cand])
-
-            last_lidar_pose = imu_pose
-
-    return {
-        "nTraj": n_traj,
-        "gtTraj": [list(t) for t in gt_traj],
-        "odomTraj": [list(t) for t in odom_traj],
-        "kfTrajIdx": kfTrajIdx,
-        "kfGt": [list(t) for t in kfGt],
-        "kfOdom": [list(t) for t in kfOdom],
-        "kfOpt": [[p.x(), p.y(), p.theta()] for p in slam.kf_poses],
-        "kfScans": [s.tolist() for s in slam.kf_scans],
-        "loopEdges": loopEdges,
+    index = {
+        "levels": levels,
         "config": {
+            "hz": HZ,
+            "lidarEvery": LIDAR_EVERY,
+            "nBeams": N_BEAMS,
+            "lidarFov": float(LIDAR_FOV),
+            "voxelSize": cfg.voxel_size,
+            "submapSize": cfg.submap_size,
+            "kfTrans": cfg.kf_trans,
+            "kfRot": cfg.kf_rot,
             "minGap": cfg.loop_min_kf_gap,
             "loopRadius": cfg.loop_search_radius,
-            "headingLimit": float(cfg.loop_max_heading_diff)
-        }
+            "headingLimit": float(cfg.loop_max_heading_diff),
+            "maxCandidates": cfg.loop_max_candidates,
+            "wrongLoopM": WRONG_LOOP_M,
+            "cauchyK": cfg.loop_cauchy_k,
+            "loopCooldown": cfg.loop_cooldown_kf,
+        },
+        "nTraj": len(gt_traj),
+        "gtTraj": r4(gt_traj),
     }
+    with open(out / "index.json", "w") as f:
+        json.dump(index, f, separators=(",", ":"))
+
+    total = sum(p.stat().st_size for p in out.glob("*.json"))
+    print(f"wrote {len(levels) + 1} files to {out}  ({total / 1e6:.2f} MB total)")
+    print("ACCEPTANCE", "PASSED" if ok else "FAILED")
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
-    levels = []
-    byLevel = {}
-
-    print("Building SLAM Cache... This will take a moment.")
-    for t in np.linspace(0.0, 1.0, 12):
-        k_d = 0.5 * t
-        k_th = 0.4 * t
-        arw = 0.05 * t
-        lidar_noise = 0.10 * t
-
-        severity = (k_d * 1.0) + (k_th * 1.0) + (arw * 10.0) + (lidar_noise * 5.0)
-
-        print(f"  -> Generating level t={t:.2f}, severity={severity:.4f}...")
-        data = generate_level(k_d, k_th, arw, lidar_noise)
-
-        key = f"{severity:.4f}"
-        levels.append(severity)
-        byLevel[key] = data
-
-    os.makedirs("data", exist_ok=True)
-    with open("data/slam_cache.json", "w") as f:
-        json.dump({"levels": levels, "byLevel": byLevel}, f, separators=(',', ':'))
-    print("Done! Cache written to data/slam_cache.json")
+    sys.exit(main())
