@@ -322,22 +322,22 @@ wheels = [
 
 [[package]]
 name = "gtsam-develop"
-version = "4.3a1.dev202605012141"
+version = "4.3.1.dev202609281119"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "pytest" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/d3/f9955723c79211ee96906dc46fa33600cdee6e5c594a230b7cc4f7ca89c8/gtsam_develop-4.3a1.dev202605012141-cp312-cp312-macosx_10_15_universal2.whl", hash = "sha256:5305c5a0676d7549d04afd907e78680963dbed27d021293d70641f71fd9620b3", size = 42529604, upload-time = "2026-05-01T23:01:54.659Z" },
-    { url = "https://files.pythonhosted.org/packages/81/32/5cee5f72282f8e2b82f80f5264d08176d9cc81ffc57c418acb2f0407396f/gtsam_develop-4.3a1.dev202605012141-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:945649a6451147a35cefdf5a2e310302c8611235a2e5c700fa5dbfd33c306328", size = 30154573, upload-time = "2026-05-01T23:01:58.119Z" },
-    { url = "https://files.pythonhosted.org/packages/5b/88/b0018b3f8cb7027149616a64092298e663fea3633b0b55a6342bf7ef6136/gtsam_develop-4.3a1.dev202605012141-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:3aa338aec96af62ebd03a9329364413657100c00179f03e5bbffe1e6925db89c", size = 31583389, upload-time = "2026-05-01T23:02:01.677Z" },
-    { url = "https://files.pythonhosted.org/packages/70/61/43bbef48be785d0db036105e3bf88dc038bdb9f20d4f82e67b868ea6ff91/gtsam_develop-4.3a1.dev202605012141-cp313-cp313-macosx_10_15_universal2.whl", hash = "sha256:5c74e5ffebb250958d25a81a45f50f774f3a7f585cf5ec3a806e1f93094afc9c", size = 42527391, upload-time = "2026-05-01T23:02:05.289Z" },
-    { url = "https://files.pythonhosted.org/packages/e4/4a/3dce7010d95067b3fb57773982532ba299230dfb569eb3aab1abcd2ff4f7/gtsam_develop-4.3a1.dev202605012141-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:a928705ed8b83558174e734f491ad4425c9ccd29610db10f435945863cb1c3bf", size = 30153611, upload-time = "2026-05-01T23:02:09.042Z" },
-    { url = "https://files.pythonhosted.org/packages/34/0b/cf26ecbde6afdc02d126c45680949790c7d2ba3ee5012983941c1405c57d/gtsam_develop-4.3a1.dev202605012141-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:e83d7d27ea3d5f3cb05eb91d521f2aaa00b5f86971cefc4e1b76b7f6a260592d", size = 31578130, upload-time = "2026-05-01T23:02:12.519Z" },
-    { url = "https://files.pythonhosted.org/packages/36/dc/a4ef59a4cbdcf079d9d341f1e16c1dab63afa7abeb453a9f83798d8ab7ef/gtsam_develop-4.3a1.dev202605012141-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:c2b909bb8a2faf3d3eddc724d245fcab75f3635d4b379dc9333c14698d766c9a", size = 42548466, upload-time = "2026-05-01T23:02:16.241Z" },
-    { url = "https://files.pythonhosted.org/packages/89/b0/723a2f3066499f7008c5f4b942797afa98b85e528b4d5769350dd53aaad5/gtsam_develop-4.3a1.dev202605012141-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:e7bcf59cf3d21ff3fb6a8ab1457387354dd7925c5e2480a7a7c3bee1b8c61556", size = 30179367, upload-time = "2026-05-01T23:02:19.828Z" },
-    { url = "https://files.pythonhosted.org/packages/9e/bc/6acefb76ff9c885609da8e15cf8f20de521b6c9cc12f731ae0d5fa634caa/gtsam_develop-4.3a1.dev202605012141-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:989f32805d8721bdf4d5aed040f7d69c3a4e93f28af3847f2c463926b3b6b263", size = 31578732, upload-time = "2026-05-01T23:02:22.864Z" },
+    { url = "https://files.pythonhosted.org/packages/2e/8f/ebacab87483a532892b7e747c2f498b492758a66447b93bfe2d96d51551f/gtsam_develop-4.3.1.dev202609281119-cp312-cp312-macosx_10_15_universal2.whl", hash = "sha256:818178b6ce4f441801a880a1b364bd397b358e32e93b318b1983aa508b6261b2", size = 46953465, upload-time = "2026-09-28T13:14:21.867Z" },
+    { url = "https://files.pythonhosted.org/packages/c9/af/8e2268b720b22b3216ed2eaabc613a5104eefcb8ef6cd291e804ca8c9d46/gtsam_develop-4.3.1.dev202609281119-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:b103e59adc43a0fe21915ede228c38260755ef6f551ca69116644fc1b88c0774", size = 33303773, upload-time = "2026-09-28T13:14:25.16Z" },
+    { url = "https://files.pythonhosted.org/packages/9c/6d/4fe7ccee675227f7b5889186b68c43b72a5df3b60fa30d834ac88b082f2c/gtsam_develop-4.3.1.dev202609281119-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:49f4309beb8b614a9cbd625f1555653b9f3a8dca52b5bd05cf267b3bc3325196", size = 34574779, upload-time = "2026-09-28T13:14:28.409Z" },
+    { url = "https://files.pythonhosted.org/packages/b8/d9/7aae51a2434241e77593b4bd7bfe6330c952fa67b7a275d458686d5674e8/gtsam_develop-4.3.1.dev202609281119-cp313-cp313-macosx_10_15_universal2.whl", hash = "sha256:cc359f73df480c4fe681257947904aea96de423ab2f2f6d57cb2b53e95239691", size = 46953129, upload-time = "2026-09-28T13:14:31.954Z" },
+    { url = "https://files.pythonhosted.org/packages/71/a8/f56440ca57057f837b5f0a29b3c5366fc82a1119b52416bf5bb4ede8110a/gtsam_develop-4.3.1.dev202609281119-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:dd99c101d23d9b9f22cdc885a5a0850e595aec3b64416e2adfd16b32e0bee233", size = 33302717, upload-time = "2026-09-28T13:14:35.294Z" },
+    { url = "https://files.pythonhosted.org/packages/3e/7d/e1c6eb4e8bb231dda8aeaecbe52676b93c0236965ee728318596cc73c133/gtsam_develop-4.3.1.dev202609281119-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:6d8822cca8ca27a7a36c9be757368c091606efea37d1eaa6b38d31f2cf00868b", size = 34573824, upload-time = "2026-09-28T13:14:38.335Z" },
+    { url = "https://files.pythonhosted.org/packages/6e/ea/503324cdd41816b46fc73b939b106d6eca035a98d8af37b5f41f81de85ee/gtsam_develop-4.3.1.dev202609281119-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:a47510fc5d633fe77f1b672d1a286b1fe4d12a0908ac62ccbf5251795afe47c4", size = 46955757, upload-time = "2026-09-28T13:14:42.042Z" },
+    { url = "https://files.pythonhosted.org/packages/12/fe/a86568485683c1a0940dd334464d9a230494a76f333b0c71740b8b4f06f1/gtsam_develop-4.3.1.dev202609281119-cp314-cp314-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ddd27e116f5395e464da528707f7c633795e3729645c664d7010b32b976aa263", size = 33326723, upload-time = "2026-09-28T13:14:45.264Z" },
+    { url = "https://files.pythonhosted.org/packages/aa/2f/ee7d83eb98b44112a14463dffa0f0f4cbbc23205c1c76b760e82d2a57325/gtsam_develop-4.3.1.dev202609281119-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:b6a1ea978aee676e7f5b92846cf0ee4269e202c2aa8311a13130b7f38cc9ca11", size = 34581157, upload-time = "2026-09-28T13:14:48.329Z" },
 ]
 
 [[package]]
@@ -1276,8 +1276,10 @@ dependencies = [
     { name = "lxml" },
     { name = "manim" },
     { name = "matplotlib" },
+    { name = "numpy" },
     { name = "posix-ipc" },
     { name = "scikit-learn" },
+    { name = "scipy" },
     { name = "seaborn" },
     { name = "svgelements" },
 ]
@@ -1288,8 +1290,10 @@ requires-dist = [
     { name = "lxml", specifier = ">=6.0.2" },
     { name = "manim", specifier = ">=0.19.2" },
     { name = "matplotlib", specifier = ">=3.10.8" },
+    { name = "numpy", specifier = ">=2.4.1" },
     { name = "posix-ipc", specifier = ">=1.3.2" },
     { name = "scikit-learn", specifier = ">=1.8.0" },
+    { name = "scipy", specifier = ">=1.17.0" },
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "svgelements", specifier = ">=1.9.6" },
 ]
