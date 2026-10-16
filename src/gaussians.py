@@ -1,6 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+import course_style
+
+course_style.apply()  # Atkinson Hyperlegible Next (course typeface)
+
 x = np.linspace(-5, 7, 1000)
 
 def gaussian(x, mu, sigma):

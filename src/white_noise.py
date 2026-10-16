@@ -2,6 +2,10 @@ import numpy as np
 from matplotlib import pyplot as plt
 import seaborn as sns
 
+import course_style
+
+course_style.apply()  # Atkinson Hyperlegible Next (course typeface)
+
 PALETTE_NAME = 'flare'
 
 

@@ -5,6 +5,11 @@
 % Clean environment
 clear; clc; close all;
 
+% Course typeface (Atkinson Hyperlegible Next): install ../fonts/*.otf first
+set(groot, 'defaultAxesFontName', 'Atkinson Hyperlegible Next');
+set(groot, 'defaultTextFontName', 'Atkinson Hyperlegible Next');
+set(groot, 'defaultLegendFontName', 'Atkinson Hyperlegible Next');
+
 % 1. Sampling & Signal Setup
 fs = 2;                 % Nyquist = 1.0 (aligns with MATLAB fir1 bounds)
 N = 2048 * 1;

@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import course_style
 
 # Set a clean, modern style for presentation slides
 plt.style.use('seaborn-v0_8-whitegrid')
@@ -10,6 +11,7 @@ plt.rcParams.update({
     'legend.fontsize': 14,
     'lines.linewidth': 3
 })
+course_style.apply()  # Atkinson Hyperlegible Next (course typeface)
 
 def gaussian(x, mu, var):
     """Calculates the 1D Gaussian probability density function."""

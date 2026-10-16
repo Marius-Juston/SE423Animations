@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import course_style
 from matplotlib.patches import Ellipse, FancyArrowPatch
 
 # ==========================================
@@ -13,6 +14,7 @@ plt.rcParams.update({
     'legend.fontsize': 14,
     'lines.linewidth': 3
 })
+course_style.apply()  # Atkinson Hyperlegible Next (course typeface)
 
 # ==========================================
 # 2. System and Filter Parameters (adjust as needed)

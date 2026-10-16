@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import course_style
 import scipy.stats
 import matplotlib.patches as patches
 import copy
@@ -7,8 +8,7 @@ import copy
 # ==========================================
 # 1. Matplotlib Configuration (Safe Math Text)
 # ==========================================
-plt.rc('font', family='serif')
-plt.rc('mathtext', fontset='cm')  # Computer Modern (LaTeX font)
+course_style.apply()  # Atkinson Hyperlegible Next (course typeface)
 plt.rc('axes', titlesize=18, labelsize=14)
 
 # ==========================================

@@ -186,7 +186,7 @@ def generate_svg(obstacles, explored_arcs, final_path, filename="hybrid_astar.sv
         return f'''
   <g>
     <circle cx="{px}" cy="{py}" r="{CELL_SIZE * 0.3}" fill="{color}" />
-    <text x="{px}" y="{py + 4}" font-family="monospace" font-size="12" font-weight="bold" fill="#0b0e14" text-anchor="middle">{label}</text>
+    <text x="{px}" y="{py + 4}" font-family="'Atkinson Hyperlegible Next', sans-serif" font-size="12" font-weight="bold" fill="#0b0e14" text-anchor="middle">{label}</text>
     <line x1="{px}" y1="{py}" x2="{ax}" y2="{ay}" stroke="{color}" stroke-width="2" />
   </g>'''
 
