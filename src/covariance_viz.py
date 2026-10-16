@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import course_style
 from matplotlib.patches import Ellipse
 
 # Set a clean, modern style for presentation slides
@@ -9,8 +10,8 @@ plt.rcParams.update({
     'axes.labelsize': 16,
     'axes.titlesize': 18,
     'legend.fontsize': 14,
-    'mathtext.fontset': 'cm'  # Use Computer Modern for elegant LaTeX math
 })
+course_style.apply()  # Atkinson Hyperlegible Next (course typeface)
 
 
 def generate_covariance_svg():
@@ -24,7 +25,7 @@ def generate_covariance_svg():
                     [2.5, 3.0]])
 
     # 2. Mathematical Decomposition (Spectral Theorem)
-    eigenvalues, eigenvectors = np.linalg.eig(cov)
+    eigenvalues, eigenvectors = np.linalg.eigh(cov)  # symmetric → real results
 
     # Sort by descending eigenvalue so v1 is the major axis
     order = eigenvalues.argsort()[::-1]

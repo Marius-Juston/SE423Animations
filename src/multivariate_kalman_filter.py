@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import course_style
 from matplotlib.patches import Ellipse
 import matplotlib.transforms as transforms
 
@@ -13,6 +14,7 @@ plt.rcParams.update({
     'lines.linewidth': 3,
     'figure.autolayout': True  # Equivalent to tight_layout()
 })
+course_style.apply()  # Atkinson Hyperlegible Next (course typeface)
 
 
 def draw_ellipse(ax, mean, cov, n_std=2.0, **kwargs):

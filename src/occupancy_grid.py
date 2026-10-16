@@ -3,6 +3,10 @@ import matplotlib.patches as patches
 from matplotlib.colors import ListedColormap
 import numpy as np
 
+import course_style
+
+course_style.apply()  # Atkinson Hyperlegible Next (course typeface)
+
 
 def get_cells_on_ray(x0, y0, x1, y1, grid_size):
     """Bresenham's line algorithm to find all cells traversed by a ray."""

@@ -5,6 +5,10 @@ from sklearn.neighbors import NearestNeighbors
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
+import course_style
+
+course_style.apply()  # Atkinson Hyperlegible Next (course typeface)
+
 
 def best_fit_transform(A, B):
     """

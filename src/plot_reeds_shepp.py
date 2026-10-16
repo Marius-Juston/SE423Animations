@@ -6,6 +6,10 @@ import matplotlib.patches as patches
 import reeds_shepp
 from reeds_shepp import Steering, Gear
 
+import course_style
+
+course_style.apply()  # Atkinson Hyperlegible Next (course typeface)
+
 
 def draw_vehicle_patch(ax, x, y, theta_rad, width=1.4, length=2.8):
     """

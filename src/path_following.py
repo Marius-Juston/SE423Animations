@@ -4,6 +4,10 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
 from queue import PriorityQueue
 
+import course_style
+
+course_style.apply()  # Atkinson Hyperlegible Next (course typeface)
+
 
 # ==========================================
 # 1. Standard 2D A* Planner (Unchanged)

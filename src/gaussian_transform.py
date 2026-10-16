@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import course_style
 
 plt.style.use('seaborn-v0_8-whitegrid')
 plt.rcParams.update({
@@ -9,6 +10,7 @@ plt.rcParams.update({
     'legend.fontsize': 14,
     'lines.linewidth': 3
 })
+course_style.apply()  # Atkinson Hyperlegible Next (course typeface)
 
 
 def gaussian(x, mu, var):

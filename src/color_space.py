@@ -4,6 +4,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+import course_style
+
+course_style.apply()  # Atkinson Hyperlegible Next (course typeface)
+
 # --- Load CIE 1931 CMFs ---
 cmf = np.loadtxt("../resource/CIE_xyz_1931_2deg.csv", delimiter=",")
 wavelengths = cmf[:, 0]
