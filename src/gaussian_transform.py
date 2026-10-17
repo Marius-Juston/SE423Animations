@@ -39,9 +39,9 @@ samples = np.random.normal(mu_0, var_0, N)
 
 bins = 100
 
-ax.hist(samples, bins=bins, density=True, color='#1f77b4', alpha=0.5)
-ax2.hist(2 * samples, bins=bins, density=True, color='#9467bd', alpha=0.5)
-ax3.hist(np.sin(samples), bins=bins, density=True, color='#ff7f0e', alpha=0.5)
+ax.hist(samples, bins=bins, density=True, color='#0072B2', alpha=0.5)
+ax2.hist(2 * samples, bins=bins, density=True, color='#CC79A7', alpha=0.5)
+ax3.hist(np.sin(samples), bins=bins, density=True, color='#E69F00', alpha=0.5)
 
 plt.tight_layout()
 fig.savefig('gaussian_transform.svg', format='svg', transparent=True)

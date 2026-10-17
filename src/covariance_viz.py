@@ -36,7 +36,7 @@ def generate_covariance_svg():
     angle = np.degrees(np.arctan2(*eigenvectors[:, 0][::-1]))
 
     # 3. Plot the Confidence Ellipses (1, 2, and 3 Standard Deviations)
-    colors = ['#1f77b4', '#1f77b4', '#1f77b4']
+    colors = ['#0072B2', '#0072B2', '#0072B2']
     alphas = [0.4, 0.2, 0.1]
     for i, n_std in enumerate([1, 2, 3]):
         ell = Ellipse(xy=mean,
@@ -54,15 +54,15 @@ def generate_covariance_svg():
 
     # Major Axis
     ax.annotate('', xy=mean + v1, xytext=mean,
-                arrowprops=dict(facecolor='#d62728', shrink=0, width=3, headwidth=10))
+                arrowprops=dict(facecolor='#D55E00', shrink=0, width=3, headwidth=10))
     ax.text(mean[0] + v1[0] * 1.1, mean[1] + v1[1] * 1.1, r'$\sqrt{\lambda_1}\vec{v_1}$ (Major Axis)',
-            color='#d62728', fontsize=16, fontweight='bold', ha='left')
+            color='#D55E00', fontsize=16, fontweight='bold', ha='left')
 
     # Minor Axis
     ax.annotate('', xy=mean + v2, xytext=mean,
-                arrowprops=dict(facecolor='#2ca02c', shrink=0, width=3, headwidth=10))
+                arrowprops=dict(facecolor='#009E73', shrink=0, width=3, headwidth=10))
     ax.text(mean[0] + v2[0] * 1.1, mean[1] + v2[1] * 1.1, r'$\sqrt{\lambda_2}\vec{v_2}$ (Minor Axis)',
-            color='#2ca02c', fontsize=16, fontweight='bold', ha='right')
+            color='#009E73', fontsize=16, fontweight='bold', ha='right')
 
     # 5. Draw the Marginal Variances (\sigma_x and \sigma_y)
     sigma_x = np.sqrt(cov[0, 0])

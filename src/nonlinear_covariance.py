@@ -36,11 +36,11 @@ sigma_v = 0.5      # Velocity noise
 sigma_theta = 0.6  # Heading noise (large enough to show curvature)
 
 # Define distinct styling for different elements:
-mc_style = {'color': '#1f77b4', 's': 3, 'alpha': 0.15}
-ekf_ellipse_style = {'edgecolor': '#d62728', 'facecolor': 'none', 'lw': 3, 'linestyle': '--', 'zorder': 4}
-ekf_mean_style = {'color': '#d62728', 'marker': 'x', 's': 100, 'zorder': 5, 'lw': 3}
-lie_bound_style = {'color': '#2ca02c', 'lw': 4, 'zorder': 4}
-lie_mean_style = {'color': '#2ca02c', 'marker': '+', 's': 150, 'zorder': 6, 'lw': 3}
+mc_style = {'color': '#0072B2', 's': 3, 'alpha': 0.15}
+ekf_ellipse_style = {'edgecolor': '#D55E00', 'facecolor': 'none', 'lw': 3, 'linestyle': '--', 'zorder': 4}
+ekf_mean_style = {'color': '#D55E00', 'marker': 'x', 's': 100, 'zorder': 5, 'lw': 3}
+lie_bound_style = {'color': '#009E73', 'lw': 4, 'zorder': 4}
+lie_mean_style = {'color': '#009E73', 'marker': '+', 's': 150, 'zorder': 6, 'lw': 3}
 start_pose_style = {'color': 'black', 's': 300, 'marker': '*', 'zorder': 10}
 start_heading_arrow_style = {'fc': 'black', 'ec': 'black', 'zorder': 10, 'lw': 2, 'head_width': 0.15, 'head_length': 0.25}
 start_annotation_style = {'fontsize': 16, 'fontweight': 'bold'}
