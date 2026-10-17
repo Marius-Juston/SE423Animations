@@ -205,16 +205,16 @@ def render_slide(particles, weights, true_pose, step_name, filename, eq_text,
 
     if true_arc is not None:
         ax.plot(true_arc[:, 0], true_arc[:, 1],
-                color='#c0392b', linestyle='--', linewidth=2, zorder=4, label='True Path (1s Arc)')
+                color='#A63D00', linestyle='--', linewidth=2, zorder=4, label='True Path (1s Arc)')
 
     if measurements is not None:
         for i, (lx, ly) in enumerate(LANDMARKS):
-            circle = patches.Circle((lx, ly), measurements[i][0], color='#2ecc71', fill=False,
+            circle = patches.Circle((lx, ly), measurements[i][0], color='#009E73', fill=False,
                                     linestyle='--', linewidth=2, alpha=0.6, zorder=1)
             ax.add_patch(circle)
-        ax.plot([], [], color='#2ecc71', linestyle='--', linewidth=2, label='Sensor Reading $z_t$')
+        ax.plot([], [], color='#009E73', linestyle='--', linewidth=2, label='Sensor Reading $z_t$')
 
-    ax.scatter(LANDMARKS[:, 0], LANDMARKS[:, 1], c='#f1c40f', s=300, marker='*',
+    ax.scatter(LANDMARKS[:, 0], LANDMARKS[:, 1], c='#E69F00', s=300, marker='*',
                edgecolor='black', zorder=4, label='Landmarks')
 
     if measurements is not None:
@@ -231,10 +231,10 @@ def render_slide(particles, weights, true_pose, step_name, filename, eq_text,
 
     est_pose = get_estimated_pose(state, weights)
     ax.quiver(est_pose[0], est_pose[1], np.cos(est_pose[2]), np.sin(est_pose[2]),
-              color='#8e44ad', scale=12, width=0.02, zorder=6, label='Estimated Pose (Mean)')
+              color='black', scale=12, width=0.02, zorder=6, label='Estimated Pose (Mean)')
 
     ax.quiver(true_pose[0], true_pose[1], np.cos(true_pose[2]), np.sin(true_pose[2]),
-              color='#e74c3c', scale=12, width=0.02, zorder=5, label='True Robot Pose')
+              color='#D55E00', scale=12, width=0.02, zorder=5, label='True Robot Pose')
 
     ax.set_xlim(0, WORLD_SIZE)
     ax.set_ylim(0, WORLD_SIZE)

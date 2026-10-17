@@ -92,9 +92,9 @@ P_final = (I - K @ H) @ P_pred
 # Figure 1: Initial Belief (2D)
 # ==========================================
 fig1, ax1 = setup_2d_plot('MD Initial Belief (The State Vector)')
-draw_ellipse(ax1, x0, P0, color='#1f77b4', alpha=0.3)
-draw_ellipse(ax1, x0, P0, color='#1f77b4', linewidth=3, fill=False)
-ax1.scatter(x0[0], x0[1], color='#1f77b4', s=100, label=r'Initial Belief $(\mathbf{x}_0)$')
+draw_ellipse(ax1, x0, P0, color='#0072B2', alpha=0.3)
+draw_ellipse(ax1, x0, P0, color='#0072B2', linewidth=3, fill=False)
+ax1.scatter(x0[0], x0[1], color='#0072B2', s=100, label=r'Initial Belief $(\mathbf{x}_0)$')
 
 # FIXED: Removed \begin{bmatrix} and used transposed bracket notation
 ax1.text(0.5, 9.0, r'$\mathbf{x} = [x, y]^T$', fontsize=16, bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'))
@@ -113,24 +113,24 @@ fig1.savefig('MD_01_initial_belief.svg', format='svg', transparent=True)
 # ==========================================
 fig2, ax2 = setup_2d_plot('MD Prediction (Linear Transformation)')
 
-draw_ellipse(ax2, x0, P0, color='#1f77b4', linestyle='--', linewidth=2, fill=False, alpha=0.5)
-ax2.scatter(x0[0], x0[1], color='#1f77b4', s=100, alpha=0.5, label='Old Belief')
+draw_ellipse(ax2, x0, P0, color='#0072B2', linestyle='--', linewidth=2, fill=False, alpha=0.5)
+ax2.scatter(x0[0], x0[1], color='#0072B2', s=100, alpha=0.5, label='Old Belief')
 
 P_transformed = F @ P0 @ F.T
-draw_ellipse(ax2, F @ x0, P_transformed, color='#9467bd', linestyle=':', linewidth=2, fill=False, alpha=0.7)
+draw_ellipse(ax2, F @ x0, P_transformed, color='#CC79A7', linestyle=':', linewidth=2, fill=False, alpha=0.7)
 
 # FIXED: Added parentheses around (F @ x0) to ensure matrix math happens before indexing
 ax2.text((F @ x0)[0] - 0.5, (F @ x0)[1] + 1.5, r'Motion $(\mathbf{F}\mathbf{P}\mathbf{F}^T)$')
 
-draw_ellipse(ax2, x_pred, P_pred, color='#9467bd', alpha=0.3)
-draw_ellipse(ax2, x_pred, P_pred, color='#9467bd', linewidth=3, fill=False)
-ax2.scatter(x_pred[0], x_pred[1], color='#9467bd', s=100, label=r'Predicted Prior $(\mathbf{x}_{pred}, \mathbf{P}_{pred})$')
+draw_ellipse(ax2, x_pred, P_pred, color='#CC79A7', alpha=0.3)
+draw_ellipse(ax2, x_pred, P_pred, color='#CC79A7', linewidth=3, fill=False)
+ax2.scatter(x_pred[0], x_pred[1], color='#CC79A7', s=100, label=r'Predicted Prior $(\mathbf{x}_{pred}, \mathbf{P}_{pred})$')
 
 ax2.annotate('', xy=F @ x0, xytext=x0, arrowprops=dict(arrowstyle='-|>', mutation_scale=20, shrinkA=0, shrinkB=0, linewidth=2, color='gray'))
 ax2.annotate('', xy=x_pred, xytext=F @ x0, arrowprops=dict(facecolor='black', arrowstyle='-|>', mutation_scale=20, shrinkA=0, shrinkB=0, linewidth=2))
 
-ax2.text(8, 2.5, r'$\mathbf{x}_{pred} = \mathbf{F}\mathbf{x}_{k-1} + \mathbf{B}\mathbf{u}$', fontsize=14, color='#9467bd')
-ax2.text(8, 1.0, r'$\mathbf{P}_{pred} = \mathbf{F}\mathbf{P}_{k-1}\mathbf{F}^T + \mathbf{Q}$', fontsize=14, color='#9467bd')
+ax2.text(8, 2.5, r'$\mathbf{x}_{pred} = \mathbf{F}\mathbf{x}_{k-1} + \mathbf{B}\mathbf{u}$', fontsize=14, color='#CC79A7')
+ax2.text(8, 1.0, r'$\mathbf{P}_{pred} = \mathbf{F}\mathbf{P}_{k-1}\mathbf{F}^T + \mathbf{Q}$', fontsize=14, color='#CC79A7')
 
 ax2.legend()
 plt.tight_layout()
@@ -141,19 +141,19 @@ fig2.savefig('MD_02_prediction.svg', format='svg', transparent=True)
 # ==========================================
 fig3, ax3 = setup_2d_plot('MD Update (Transforming the Measurement)')
 
-draw_ellipse(ax3, x_pred, P_pred, color='#9467bd', fill=False, alpha=0.3, label='Prediction')
-ax3.scatter(x_pred[0], x_pred[1], color='#9467bd', s=100, alpha=0.3)
+draw_ellipse(ax3, x_pred, P_pred, color='#CC79A7', fill=False, alpha=0.3, label='Prediction')
+ax3.scatter(x_pred[0], x_pred[1], color='#CC79A7', s=100, alpha=0.3)
 
-draw_ellipse(ax3, x_meas_state_space, P_meas_state_space, color='#ff7f0e', alpha=0.3)
-draw_ellipse(ax3, x_meas_state_space, P_meas_state_space, color='#ff7f0e', linewidth=3, fill=False)
-ax3.scatter(x_meas_state_space[0], x_meas_state_space[1], color='#ff7f0e', s=100,
+draw_ellipse(ax3, x_meas_state_space, P_meas_state_space, color='#E69F00', alpha=0.3)
+draw_ellipse(ax3, x_meas_state_space, P_meas_state_space, color='#E69F00', linewidth=3, fill=False)
+ax3.scatter(x_meas_state_space[0], x_meas_state_space[1], color='#E69F00', s=100,
             label=r'Effective Sensor Belief $(\mathbf{H}^{-1}\mathbf{z}_k, \mathbf{P}_{meas})$')
 
 ax3.plot([x_pred[0], x_meas_state_space[0]], [x_pred[1], x_meas_state_space[1]], color='gray', linestyle=':')
 ax3.text(10.2, 5.0, 'Residual\n'r'$(\mathbf{z}_k - \mathbf{H}\mathbf{x}_{pred})$')
 
 ax3.text(0, 0.5, r'Innovation Covariance (S):', fontsize=14)
-ax3.text(0, -1.0, r'$\mathbf{S} = \mathbf{H}\mathbf{P}_{pred}\mathbf{H}^T + \mathbf{R}$', fontsize=14, color='#ff7f0e')
+ax3.text(0, -1.0, r'$\mathbf{S} = \mathbf{H}\mathbf{P}_{pred}\mathbf{H}^T + \mathbf{R}$', fontsize=14, color='#E69F00')
 
 ax3.legend()
 plt.tight_layout()
@@ -164,23 +164,23 @@ fig3.savefig('MD_03_sensor_opinion.svg', format='svg', transparent=True)
 # ==========================================
 fig4, ax4 = setup_2d_plot('Fusing Data (Shrinking the State Ellipse)')
 
-draw_ellipse(ax4, x_pred, P_pred, color='#9467bd', fill=False, alpha=0.3, linestyle='--', label='Prediction (Faded)')
-draw_ellipse(ax4, x_meas_state_space, P_meas_state_space, color='#ff7f0e', fill=False, alpha=0.3, linestyle='--',
+draw_ellipse(ax4, x_pred, P_pred, color='#CC79A7', fill=False, alpha=0.3, linestyle='--', label='Prediction (Faded)')
+draw_ellipse(ax4, x_meas_state_space, P_meas_state_space, color='#E69F00', fill=False, alpha=0.3, linestyle='--',
              label='Effective Measurement (Faded)')
 
-draw_ellipse(ax4, x_final, P_final, color='#2ca02c', alpha=0.4)
-draw_ellipse(ax4, x_final, P_final, color='#2ca02c', linewidth=4, fill=False)
-ax4.scatter(x_final[0], x_final[1], color='#2ca02c', s=120, label=r'Fused Truth $(\mathbf{x}_k, \mathbf{P}_k)$')
+draw_ellipse(ax4, x_final, P_final, color='#009E73', alpha=0.4)
+draw_ellipse(ax4, x_final, P_final, color='#009E73', linewidth=4, fill=False)
+ax4.scatter(x_final[0], x_final[1], color='#009E73', s=120, label=r'Fused Truth $(\mathbf{x}_k, \mathbf{P}_k)$')
 
-ax4.annotate('', xy=x_final, xytext=x_pred, arrowprops=dict(arrowstyle='-|>', mutation_scale=20, linewidth=2, color='#2ca02c'))
-ax4.text(x_final[0] - 2, x_final[1] + 1, r'$\mathbf{K}(\mathbf{z}_k - \mathbf{H}\mathbf{x}_{pred})$', color='#2ca02c')
+ax4.annotate('', xy=x_final, xytext=x_pred, arrowprops=dict(arrowstyle='-|>', mutation_scale=20, linewidth=2, color='#009E73'))
+ax4.text(x_final[0] - 2, x_final[1] + 1, r'$\mathbf{K}(\mathbf{z}_k - \mathbf{H}\mathbf{x}_{pred})$', color='#009E73')
 
 ax4.text(-1, 9.2, f'Kalman Gain K[0,0] = {K[0, 0]:.2f}', fontsize=12,
          bbox=dict(facecolor='white', alpha=0.8, edgecolor='gray'))
 ax4.text(-1, 8.5, r'$\mathbf{K} = \mathbf{P}_{pred}\mathbf{H}^T\mathbf{S}^{-1}$', fontsize=14)
 
 ax4.text(-1, -1.0, r'$\mathbf{P}_k = (\mathbf{I} - \mathbf{K}\mathbf{H})\mathbf{P}_{pred}$', fontsize=14,
-         color='#2ca02c')
+         color='#009E73')
 
 ax4.legend(loc='lower right')
 plt.tight_layout()
